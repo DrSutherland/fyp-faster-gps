@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 # Phase taps according to the ICD-GPS-200 specification
 PHASE_TAPS = np.array([
@@ -86,6 +87,11 @@ def generate(prn):
   return G
 
 if __name__ == '__main__':
-  for prn in range(1, len(PHASE_TAPS) + 1):
-    first_ten_chips = generate(prn=prn)[0:10]
-    print 'PRN {0}: {1}'.format(prn, first_ten_chips)
+  fig = plt.figure()
+  ax = fig.add_subplot(111)
+  ax.plot(generate(prn=1))
+  fig.savefig('test.png')
+  # for prn in range(1, len(PHASE_TAPS) + 1):
+  #   first_ten_chips = generate(prn=prn)[0:10]
+  #   print 'PRN {0}: {1}'.format(prn, first_ten_chips)
+
