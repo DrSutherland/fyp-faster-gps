@@ -2,9 +2,16 @@ import numpy as np
 
 # Phase taps according to the ICD-GPS-200 specification
 PHASE_TAPS = np.array([
-  [2, 6], # PRN 1
-  [2, 6], # PRN 2
-  [2, 6]
+  [2,6],  # PRN 1
+  [3,7],  # PRN 2
+  [4,8],  # PRN 3
+  [5,9],  # PRN 4
+  [1,9],  # PRN 5
+  [2,10], # PRN 6
+  [1,8],  # PRN 7
+  [2,9],  # PRN 8
+  [3,10], # PRN 9
+  [2,3]   # PRN 10
 ]) - 1 # Minus 1 to take into account Python's zero-indexed arrays
 
 def get_phase_taps(prn):
