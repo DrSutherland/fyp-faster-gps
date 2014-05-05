@@ -11,7 +11,29 @@ PHASE_TAPS = np.array([
   [1,8],  # PRN 7
   [2,9],  # PRN 8
   [3,10], # PRN 9
-  [2,3]   # PRN 10
+  [2,3],  # PRN 10
+  [3,4],  # PRN 11
+  [5,6],  # PRN 12
+  [6,7],  # PRN 13
+  [7,8],  # PRN 14
+  [8,9],  # PRN 15
+  [9,10], # PRN 16
+  [1,4],  # PRN 17
+  [2,5],  # PRN 18
+  [3,6],  # PRN 19
+  [4,7],  # PRN 20
+  [5,8],  # PRN 21
+  [6,9],  # PRN 22
+  [1,3],  # PRN 23
+  [4,6],  # PRN 24
+  [5,7],  # PRN 25
+  [6,8],  # PRN 26
+  [7,9],  # PRN 27
+  [8,10], # PRN 28
+  [1,6],  # PRN 29
+  [2,7],  # PRN 30
+  [3,8],  # PRN 31
+  [4,9],  # PRN 32
 ]) - 1 # Minus 1 to take into account Python's zero-indexed arrays
 
 # G1 = 1 + x3 + x10
