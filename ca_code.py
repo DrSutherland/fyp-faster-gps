@@ -47,14 +47,14 @@ POLYNOMIAL_2 = np.array([0, 1, 1, 0, 0, 1, 0, 1, 1, 1])
 SR_SIZE = 10
 
 def get_phase_taps(prn):
-  return PHASE_TAPS[prn-1]
+  return PHASE_TAPS[prn-1,:]
 
 def generate(prn):
   # Allocate G1 (shift register)
-  sr1 = np.ones(POLYNOMIAL_1.shape)
+  sr1 = np.ones([prn.size, POLYNOMIAL_1.size])
 
   # Allocate G2 (shift register)
-  sr2 = np.ones(POLYNOMIAL_2.shape)
+  sr2 = np.ones([prn.size, POLYNOMIAL_2.size])
 
   # Get phase tap indices for selected PRN
   phase_taps = get_phase_taps(prn=prn)
@@ -64,34 +64,51 @@ def generate(prn):
   L = (2 ** SR_SIZE) - 1
 
   # Allocate G3 (output)
-  G = np.zeros(L)
+  G = np.zeros([prn.size, L])
 
   # Generate C/A code sequence
   for i in range(L):
     # Take values from sr2 using the index specified by the PRN
-    phase_tapped = np.mod(np.sum(sr2[phase_taps]), 2)
+    phase_tapped = np.mod(np.sum(np.take(sr2, phase_taps), axis=1), 2)
 
     # Calculates the current C/A code sequence
-    G[i] = np.mod(sr1[-1] + phase_tapped, 2);
+    G[:,i] = np.mod(sr1[:,-1] + phase_tapped, 2)
 
     # Calculates last value in shift register sr1
     # BEFORE rotating to the right
-    sr1[-1] = np.mod(np.sum(sr1 * POLYNOMIAL_1), 2)
+    sr1[:,-1] = np.mod(np.sum(sr1 * POLYNOMIAL_1, axis=1), 2)
     # Once rotated, the last value is now the first value
     sr1 = np.roll(sr1, 1)
 
     # Do the same for shift register sr2
-    sr2[-1] = np.mod(np.sum(sr2 * POLYNOMIAL_2), 2)
+    sr2[:,-1] = np.mod(np.sum(sr2 * POLYNOMIAL_2, axis=1), 2)
     sr2 = np.roll(sr2, 1)
 
   return G
 
 if __name__ == '__main__':
+  # Generate PRN values to generate
+  prns = np.arange(1, len(PHASE_TAPS) + 1)
+
+  # Generate C/A codes given an array of PRN values
+  ca_codes = generate(prn=prns)
+
   fig = plt.figure()
+
   ax = fig.add_subplot(111)
-  ax.plot(generate(prn=1))
-  fig.savefig('test.png')
+
+  # Plots binary sequence as an image
+  # Colormap reference: http://matplotlib.org/examples/color/colormaps_reference.html
+  ax.imshow(ca_codes, cmap='binary', interpolation='nearest', origin='lower', extent=(0, ca_codes.shape[1], 1, ca_codes.shape[0]))
+
+  ax.set_title('C/A Codes with different PRNs')
+  ax.set_ylabel('PRN')
+  ax.set_xlabel('C/A Code')
+  ax.tick_params(axis='y', labelsize=8)
+
+  # fig.savefig('test.png')
+  fig.show()
+
   # for prn in range(1, len(PHASE_TAPS) + 1):
   #   first_ten_chips = generate(prn=prn)[0:10]
   #   print 'PRN {0}: {1}'.format(prn, first_ten_chips)
-
