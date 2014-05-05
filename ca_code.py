@@ -63,8 +63,7 @@ def generate(prn):
 
   return G
 
-def test_correctness():
-  pass
-
 if __name__ == '__main__':
-  print generate(prn=1)
+  for prn in range(1, len(PHASE_TAPS) + 1):
+    first_ten_chips = generate(prn=prn)[0:10]
+    print 'PRN {0}: {1}'.format(prn, first_ten_chips)
