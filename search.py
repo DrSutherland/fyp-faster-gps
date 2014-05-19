@@ -4,6 +4,10 @@ import numpy as np
 from matplotlib import cm
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+from collections import namedtuple
+
+
+PlotPoints = namedtuple('PlotPoints', 'x y z')
 
 
 def fdcorr(a, b, frange):
@@ -37,16 +41,28 @@ def fdcorr(a, b, frange):
 
     fdout = ifft(fft_code_mtx * np.conj(fft_dopplers), axis=0)
 
+    return PlotPoints(
+        x=freq_axis.reshape((1, num_freqs)),
+        y=np.arange(1, n+1).reshape((n, 1)),
+        z=np.abs(fdout).reshape((n, num_freqs)),
+    )
+
+
+def plot(plot_points):
     fig = plt.figure()
     ax = fig.gca(projection='3d')
     surf = ax.plot_surface(
-        X=freq_axis.reshape((1, num_freqs)),
-        Y=np.arange(1, n+1).reshape((n, 1)),
-        Z=np.abs(fdout).reshape((n, num_freqs)),
-        rstride=1, cstride=1, cmap=cm.coolwarm,
-        linewidth=0, antialiased=False
+        X=plot_points.x,
+        Y=plot_points.y,
+        Z=plot_points.z,
+        rstride=1,
+        cstride=1,
+        cmap=cm.coolwarm,
+        linewidth=0,
+        antialiased=False,
     )
     plt.show()
+
 
 
 data = loadmat('fdcorr_demo')
