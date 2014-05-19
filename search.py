@@ -1,10 +1,12 @@
+from collections import namedtuple
+
+import numpy as np
 from scipy.io import loadmat
 from scipy.fftpack import fft, ifft
-import numpy as np
 from matplotlib import cm
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-from collections import namedtuple
+import ca_code
 
 
 PlotPoints = namedtuple('PlotPoints', 'x y z')
@@ -64,6 +66,13 @@ def plot(plot_points):
     plt.show()
 
 
+def main():
+    data = loadmat('fdcorr_demo')
 
-data = loadmat('fdcorr_demo')
-fdcorr(data['rx_seg'], data['prn_code'], data['frange'])
+    plot_points = fdcorr(data['rx_seg'], ca_code.generate(prn=26, sampling_rate=2), data['frange'])
+
+    plot(plot_points)
+
+
+if __name__ == '__main__':
+    main()
