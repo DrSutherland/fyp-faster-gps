@@ -51,7 +51,9 @@ def get_phase_taps(prn):
     return PHASE_TAPS[prn-1]
 
 
-def generate(prn):
+def generate(prn, sampling_rate=1):
+    """Generates the C/A gold code given a satellite's PRN number"""
+
     # Force numpy array
     prn = np.array(prn)
 
@@ -89,7 +91,7 @@ def generate(prn):
         sr2[:, -1] = np.mod(np.sum(sr2 * POLYNOMIAL_2, axis=1), 2)
         sr2 = np.roll(sr2, 1)
 
-    return output
+    return np.repeat(output, repeats=sampling_rate, axis=1)
 
 
 def main():
@@ -110,7 +112,7 @@ def main():
         cmap='binary',
         interpolation='nearest',
         origin='lower',
-        extent=(0, ca_codes.shape[1], 1, ca_codes.shape[0])
+        extent=(0, ca_codes.shape[1], 1, ca_codes.shape[0]),
     )
 
     ax.set_title('C/A Codes with different PRNs')
@@ -118,12 +120,7 @@ def main():
     ax.set_xlabel('C/A Code')
     ax.tick_params(axis='y', labelsize=8)
 
-    # fig.savefig('test.png')
-    fig.show()
-
-    # for prn in range(1, len(PHASE_TAPS) + 1):
-    #     first_ten_chips = generate(prn=prn)[0:10]
-    #     print 'PRN {0}: {1}'.format(prn, first_ten_chips)
+    plt.show()
 
 
 if __name__ == '__main__':
