@@ -1,3 +1,5 @@
+from __future__ import division
+
 __author__ = 'jyl111'
 
 import numpy as np
@@ -10,11 +12,14 @@ class Simulation:
         self.params = params
 
         self.t = np.arange(self.params.n)
-        self.x = np.empty(self.params.n, dtype=np.complex128)
+        self.x = np.zeros(self.params.n, dtype=np.complex128)
         self.x_f = np.zeros(self.params.n)
+        self.y = np.zeros(self.params.n, dtype=np.complex128)
 
         self.generate_frequencies()
         self.generate_input()
+        self.add_noise_to_input()
+        self.generate_output()
 
     def generate_frequencies(self):
         """Generate locations of k random frequencies"""
@@ -29,6 +34,35 @@ class Simulation:
         """Generate time domain signal"""
         self.x = fourier_transforms.ifft(self.x_f)
 
+    def add_noise_to_input(self):
+        if np.isinf(self.params.snr):
+            return
+
+        # Calculate signal power
+        signal_power = np.sum(np.square(np.absolute(self.x))) / self.x.shape[-1]
+
+        # Calculate desired noise std
+        noise_std = np.sqrt(signal_power / self.params.snr)
+
+        # Generate AWGN
+        noise = np.random.normal(
+            scale=noise_std,
+            size=self.params.n,
+        )
+
+        # Calculate noise power
+        noise_power = np.sum(np.square(np.absolute(noise))) / noise.shape[-1]
+
+        # Calculate SNR
+        snr = signal_power / noise_power
+
+        # Add noise to input
+        self.x += noise
+
+        print "SNR is {0} or {1} dB".format(snr, 10 * np.log10(snr))
+
+    def generate_output(self):
+        self.y = fourier_transforms.fft(self.x)
 
 def main():
     params = Parameters(
@@ -48,6 +82,12 @@ def main():
     fig = plt.figure()
     ax = fig.gca()
     ax.plot(sim.t, sim.x_f)
+    ax.set_xlim(right=sim.t.shape[-1]-1)
+
+    fig = plt.figure()
+    ax = fig.gca()
+    ax.plot(sim.t, sim.y.real, 'b-', sim.t, sim.y.imag, 'r--')
+    ax.legend(('Real', 'Imaginary'))
     ax.set_xlim(right=sim.t.shape[-1]-1)
 
     plt.show()
