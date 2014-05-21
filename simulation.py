@@ -2,16 +2,16 @@ __author__ = 'jyl111'
 
 import numpy as np
 import fourier_transforms
+from parameters import Parameters
 
 
 class Simulation:
-    def __init__(self, n=1024, k=10):
-        self.n = n
-        self.k = k
+    def __init__(self, params):
+        self.params = params
 
-        self.t = np.arange(self.n)
-        self.x = np.empty(self.n, dtype=np.complex128)
-        self.x_f = np.zeros(self.n)
+        self.t = np.arange(self.params.n)
+        self.x = np.empty(self.params.n, dtype=np.complex128)
+        self.x_f = np.zeros(self.params.n)
 
         self.generate_frequencies()
         self.generate_input()
@@ -20,7 +20,7 @@ class Simulation:
         """Generate locations of k random frequencies"""
 
         # Generate k random indices
-        indices = np.random.randint(self.n, size=self.k)
+        indices = np.random.randint(self.params.n, size=self.params.k)
 
         # Set values of locations to 1.0
         self.x_f[indices] = 1.0
@@ -31,7 +31,11 @@ class Simulation:
 
 
 def main():
-    sim = Simulation()
+    params = Parameters(
+        n=1024,
+        k=10,
+    )
+    sim = Simulation(params=params)
 
     import matplotlib.pyplot as plt
 
