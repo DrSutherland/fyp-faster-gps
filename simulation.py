@@ -4,7 +4,9 @@ __author__ = 'jyl111'
 
 import numpy as np
 import fourier_transforms
+
 from parameters import Parameters
+import sfft
 
 
 class Simulation:
@@ -17,8 +19,12 @@ class Simulation:
         self.y = np.zeros(self.params.n, dtype=np.complex128)
 
         self.generate_frequencies()
+
         self.generate_input()
         self.add_noise_to_input()
+
+        self.execute_sfft()
+
         self.generate_output()
 
     def generate_frequencies(self):
@@ -60,6 +66,10 @@ class Simulation:
         self.x += noise
 
         print "SNR is {0} or {1} dB".format(snr, 10 * np.log10(snr))
+
+    def execute_sfft(self):
+        # todo do something with the result
+        sfft.execute(params=self.params)
 
     def generate_output(self):
         self.y = fourier_transforms.fft(self.x)
