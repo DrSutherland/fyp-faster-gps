@@ -1,6 +1,12 @@
-import ca_code
+import nose
+nose.run()
+
 import numpy as np
 from numpy.testing import assert_array_equal
+
+import ca_code
+
+__author__ = 'jyl111'
 
 first_tens_in_octal = [
     0o1440,  # PRN 1
@@ -41,10 +47,9 @@ first_tens_in_binary_array = np.array([list(np.binary_repr(num)) for num in firs
 
 
 def test_correctness():
+    def check_correctness(prn, expected):
+        actual = ca_code.generate(prn=prn)
+        assert_array_equal(actual[0, 0:10], expected)
+
     for i, expected in enumerate(first_tens_in_binary_array):
         yield check_correctness, i + 1, expected
-
-
-def check_correctness(prn, expected):
-    actual = ca_code.generate(prn=prn)
-    assert_array_equal(actual[0, 0:10], expected)
