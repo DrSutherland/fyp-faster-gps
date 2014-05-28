@@ -1,5 +1,6 @@
 import numpy as np
 from scipy import signal
+from scipy.fftpack import fft, fftshift
 import matplotlib.pyplot as plt
 
 from parameters import Parameters
@@ -37,23 +38,68 @@ def generate_gaussian_original(lobe_fraction, tolerance):
     return output
 
 
+def generate_dolph_chebyshev(lobe_fraction, tolerance):
+    def cheb(m, x):
+        if np.abs(x) <= 1:
+            return np.cos(m * np.arccos(x))
+        else:
+            return np.cosh(m * np.arccosh(x)).real
+
+    w = int((1 / np.pi) * (1 / lobe_fraction) * np.log(1 / tolerance))
+
+    if w % 2 == 0:
+        w -= 1
+
+    beta = np.cosh(np.arccosh(1 / tolerance) / float(w - 1))
+
+    print('lobe_fraction = {0}, tolerance = {1}, w = {2}, beta = {3}'.format(lobe_fraction, tolerance, w, beta))
+
+    output = np.empty((w, 1), dtype=np.complex128)
+
+    for i in xrange(w):
+        output[i] = cheb(w - 1, beta * np.cos(np.pi * i / float(w))) * tolerance
+
+    output = fft(output, overwrite_x=True)
+
+    # TODO fixme
+
+    # output = fftshift(output)
+    # output = np.real(output)
+
+    print output
+
+    return output
+
+
 def main():
-    params = Parameters(
-        n=65536,
-        k=50
-    )
+    def display_gaussian():
+        output = generate_gaussian(
+            lobe_fraction=0.025,
+            tolerance=0.00000001
+        )
 
-    output = generate_gaussian(
-        lobe_fraction=0.025,
-        tolerance=0.00000001
-    )
+        plt.figure()
+        plt.plot(output)
+        plt.title('Gaussian window')
+        plt.ylabel('Amplitude')
+        plt.xlabel('Sample')
+        plt.show()
 
-    plt.figure()
-    plt.plot(output)
-    plt.title(r'Gaussian window ($\sigma$=7)')
-    plt.ylabel('Amplitude')
-    plt.xlabel('Sample')
-    plt.show()
+    def display_dolph_chebyshev():
+        output = generate_dolph_chebyshev(
+            lobe_fraction=0.025,
+            tolerance=0.00000001
+        )
+
+        plt.figure()
+        plt.plot(output)
+        plt.title('Dolph-Chebyshev window')
+        plt.ylabel('Amplitude')
+        plt.xlabel('Sample')
+        plt.show()
+
+    display_gaussian()
+    # display_dolph_chebyshev()
 
 
 if __name__ == '__main__':
