@@ -2,6 +2,8 @@ __author__ = 'jyl111'
 
 import numpy as np
 
+import utils
+
 
 class Parameters:
     def __init__(self,
@@ -48,9 +50,37 @@ class Parameters:
         return self.location_loops + self.estimation_loops
 
     @property
+    def BB_location(self):
+        return self.B_k_location * np.sqrt((self.n*self.k)/np.log2(self.n))
+
+    @property
+    def BB_estimation(self):
+        return self.B_k_estimation * np.sqrt((self.n*self.k)/np.log2(self.n))
+
+    @property
+    def lobe_fraction_location(self):
+        return 0.5 / self.BB_location
+
+    @property
+    def lobe_fraction_estimation(self):
+        return 0.5 / self.BB_estimation
+
+    @property
+    def b_location(self):
+        return int(1.2*1.1*(self.n/self.BB_location))
+
+    @property
+    def b_estimation(self):
+        return int(1.4*1.1*(self.n/self.BB_estimation))
+
+    @property
     def B_location(self):
-        return self.B_k_location * np.sqrt((self.n*self.k)/np.log(self.n))
+        return utils.floor_to_pow2(self.BB_location)
 
     @property
     def B_estimation(self):
-        return self.B_k_estimation * np.sqrt((self.n*self.k)/np.log(self.n))
+        return utils.floor_to_pow2(self.BB_estimation)
+
+    @property
+    def B_threshold(self):
+        return 2 * self.k
