@@ -76,7 +76,7 @@ def generate(prn, sampling_rate=1):
     # Generate C/A code sequence
     for i in range(sr_length):
         # Take values from sr2 using the index specified by the PRN
-        phase_tapped = np.mod(np.sum(np.take(sr2, phase_taps).reshape((-1, 2)), axis=1), 2)
+        phase_tapped = np.mod(np.sum(sr2.take(phase_taps).reshape((-1, 2)), axis=1), 2)
 
         # Calculates the current C/A code sequence
         output[:, i] = np.mod(sr1[:, -1] + phase_tapped, 2)
