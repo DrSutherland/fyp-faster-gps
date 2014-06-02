@@ -1,6 +1,6 @@
 import numpy as np
 from scipy import signal
-from scipy.fftpack import fft, fftshift
+from scipy.fftpack import fft, ifft, fftshift
 import matplotlib.pyplot as plt
 
 from parameters import Parameters
@@ -63,13 +63,66 @@ def generate_dolph_chebyshev(lobe_fraction, tolerance):
     x = fftshift(x)
     x = np.real(x)
 
-    return x
+    return {
+        'x': x,
+        'w': w
+    }
 
+
+def make_multiple(x, w, n, b):
+    print('w = {0}, n = {1}, b = {2}'.format(w, n, b))
+
+    assert b <= n
+    assert w <= n
+
+    g = np.zeros(n, dtype=np.complex128)
+    h = np.empty(n, dtype=np.complex128)
+
+    g[0:w-(w/2)] = x[(w/2):]
+    g[n-(w/2):] = x[:(w/2)]
+
+    g = fft(g)
+
+    s = 0
+    for i in xrange(b):
+        s += g[i]
+
+    max = 0
+    offset = int(b/2)
+
+
+    for i in xrange(n):
+        h[(i+n+offset)%n] = s
+        max = np.maximum(max, np.abs(s))
+        s += (g[(i+b)%n]-g[i])
+
+    h /= max
+
+    offsetc = 1
+    step = np.exp(-2*np.pi*1j*(w/2)/n)
+
+    for i in xrange(n):
+        h[i] *= offsetc
+        offsetc *= step
+
+    g = ifft(h)
+
+    x = g
+
+    for i in xrange(w):
+        x[i] /= n
+        print x[i]
+
+    return {
+        'time': x,
+        'size': w,
+        'freq': h
+    }
 
 def main():
     def display_gaussian():
         output = generate_gaussian(
-            lobe_fraction=0.025,
+            lobe_fraction=0.0125,
             tolerance=0.00000001
         )
 
@@ -78,23 +131,35 @@ def main():
         plt.title('Gaussian window')
         plt.ylabel('Amplitude')
         plt.xlabel('Sample')
-        plt.show()
 
     def display_dolph_chebyshev():
         output = generate_dolph_chebyshev(
-            lobe_fraction=0.025,
+            lobe_fraction=0.0125,
             tolerance=0.00000001
         )
 
         plt.figure()
-        plt.plot(output)
+        plt.plot(output['x'])
         plt.title('Dolph-Chebyshev window')
         plt.ylabel('Amplitude')
         plt.xlabel('Sample')
-        plt.show()
+
+        output = make_multiple(
+            x=output['x'],
+            w=output['w'],
+            n=1024,
+            b=33
+        )
+
+        plt.figure()
+        plt.plot(output['time'])
+        plt.title('Dolph-Chebyshev window multiple')
+        plt.ylabel('Amplitude')
+        plt.xlabel('Sample')
 
     # display_gaussian()
     display_dolph_chebyshev()
+    plt.show()
 
 
 if __name__ == '__main__':
