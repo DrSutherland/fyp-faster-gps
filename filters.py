@@ -43,9 +43,9 @@ def generate_dolph_chebyshev(lobe_fraction, tolerance):
         if np.abs(x) <= 1:
             return np.cos(m * np.arccos(x))
         else:
-            return np.cosh(m * np.arccosh(x)).real
+            return np.cosh(m * np.arccosh(np.abs(x))).real
 
-    w = int((1 / np.pi) * (1 / lobe_fraction) * np.log(1 / tolerance))
+    w = int((1 / np.pi) * (1 / lobe_fraction) * np.arccosh(1 / tolerance))
 
     if w % 2 == 0:
         w -= 1
@@ -54,21 +54,16 @@ def generate_dolph_chebyshev(lobe_fraction, tolerance):
 
     print('lobe_fraction = {0}, tolerance = {1}, w = {2}, beta = {3}'.format(lobe_fraction, tolerance, w, beta))
 
-    output = np.empty((w, 1), dtype=np.complex128)
+    x = np.empty(w, dtype=np.complex128)
 
     for i in xrange(w):
-        output[i] = cheb(w - 1, beta * np.cos(np.pi * i / float(w))) * tolerance
+        x[i] = cheb(w - 1, beta * np.cos(np.pi * i / w)) * tolerance
 
-    output = fft(output, overwrite_x=True)
+    x = fft(x, overwrite_x=True)
+    x = fftshift(x)
+    x = np.real(x)
 
-    # TODO fixme
-
-    # output = fftshift(output)
-    # output = np.real(output)
-
-    print output
-
-    return output
+    return x
 
 
 def main():
@@ -98,8 +93,8 @@ def main():
         plt.xlabel('Sample')
         plt.show()
 
-    display_gaussian()
-    # display_dolph_chebyshev()
+    # display_gaussian()
+    display_dolph_chebyshev()
 
 
 if __name__ == '__main__':
