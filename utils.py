@@ -57,6 +57,7 @@ def mod_inverse(a, n):
     #
     # return t
 
+
 def floor_to_pow2(a):
     ans = 1
 

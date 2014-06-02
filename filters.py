@@ -111,7 +111,6 @@ def make_multiple(x, w, n, b):
 
     for i in xrange(w):
         x[i] /= n
-        print x[i]
 
     return {
         'time': x,

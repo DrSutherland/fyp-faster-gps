@@ -23,9 +23,9 @@ class Simulation:
         self.generate_input()
         self.add_noise_to_input()
 
-        self.execute_sfft()
+        # self.execute_sfft()
 
-        self.generate_output()
+        # self.generate_output()
 
     def generate_frequencies(self):
         """Generate locations of k random frequencies"""
