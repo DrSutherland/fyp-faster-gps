@@ -56,3 +56,11 @@ def mod_inverse(a, n):
     #     t += n
     #
     # return t
+
+def floor_to_pow2(a):
+    ans = 1
+
+    while ans <= a:
+        ans <<= 1
+
+    return int(ans/2)
