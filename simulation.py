@@ -23,6 +23,8 @@ class Simulation:
         self.generate_input()
         self.add_noise_to_input()
 
+        self.x_f /= self.params.n
+
         # self.execute_sfft()
 
         # self.generate_output()

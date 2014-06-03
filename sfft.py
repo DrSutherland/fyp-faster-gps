@@ -12,13 +12,13 @@ from parameters import Parameters
 def execute(params, x):
     print('sFFT filter parameters for n={0}, k={1}'.format(params.n, params.k))
 
-    print('Location filter: (numlobes={numlobes}, tol={tol}, b={b}) B: {B_threshold}/{B}, loops: {threshold_loops}/{loops}'.format(
+    print('Location filter: (numlobes={numlobes}, tol={tol}, b={b}) B: {B_threshold}/{B}, loops: {loop_threshold}/{loops}'.format(
         numlobes=0.5/params.lobe_fraction_location,
         tol=params.tolerance_location,
         b=params.b_location,
         B_threshold=params.B_threshold,
         B=params.B_location,
-        threshold_loops=params.threshold_loops,
+        loop_threshold=params.loop_threshold,
         loops=params.location_loops
     ))
 
@@ -31,7 +31,7 @@ def execute(params, x):
     ))
 
     assert params.B_threshold < params.B_location
-    assert params.threshold_loops <= params.location_loops
+    assert params.loop_threshold <= params.location_loops
 
     filter_location_t = filters.generate_dolph_chebyshev(
         lobe_fraction=params.lobe_fraction_location,
@@ -102,8 +102,8 @@ def outer_loop(params, x, filter_location, filter_estimation):
             x_samp.append(np.zeros(params.B_location, dtype=np.complex128))
 
     hits_found = 0
-    hits = None
-    scores = None
+    hits = np.zeros(params.n)
+    scores = np.zeros(params.n)
 
     # Inner loop
     for i in xrange(params.total_loops):
@@ -117,6 +117,8 @@ def outer_loop(params, x, filter_location, filter_estimation):
             # print 'check', a, params.n, utils.gcd(a, params.n)
         ai = utils.mod_inverse(a, params.n)
 
+        print('Using {0}x ({1}^-1)'.format(a, ai))
+
         permute[i] = ai
         permute_b[i] = b
 
@@ -126,6 +128,7 @@ def outer_loop(params, x, filter_location, filter_estimation):
 
         inner_loop_locate_result = inner_loop_locate(
             x=x,
+            n=params.n,
             filter=filter,
             B=current_B,
             B_threshold=params.B_threshold,
@@ -141,21 +144,25 @@ def outer_loop(params, x, filter_location, filter_estimation):
                 J=inner_loop_locate_result['J'],
                 B=current_B,
                 B_threshold=params.B_threshold,
-                loop_threshold=params.threshold_loops,
+                loop_threshold=params.loop_threshold,
                 n=params.n,
-                a=a
+                a=a,
+                hits_found=hits_found,
+                hits=hits,
+                scores=scores
             )
 
             hits_found = inner_loop_filter_result['hits_found']
             hits = inner_loop_filter_result['hits']
             scores = inner_loop_filter_result['scores']
 
+        print params.B_threshold, inner_loop_locate_result['J'][0], inner_loop_locate_result['J'][1], hits_found
 
-def inner_loop_locate(x, filter, B, B_threshold, a, ai, b):
-    n = x.size
+    print('Number of candidates: {0}'.format(hits_found))
 
-    if n % B:
-        print('Warning: n is not divisible by B')
+
+def inner_loop_locate(x, n, filter, B, B_threshold, a, ai, b):
+    assert n % B == 0
 
     x_t_samp = np.zeros(B, dtype=np.complex128)
 
@@ -173,21 +180,22 @@ def inner_loop_locate(x, filter, B, B_threshold, a, ai, b):
 
     J = np.argsort(samples)[:B_threshold]
 
+    np.testing.assert_array_equal(samples.take(J), np.sort(samples)[:B_threshold])
+
     return {
         'x_samp': x_samp,
         'J': J
     }
 
 
-def inner_loop_filter(J, B, B_threshold, n, a, loop_threshold):
-    hits_found = 0
-    hits = np.empty(n)
-    scores = np.zeros(n)
+def inner_loop_filter(J, B, B_threshold, n, a, loop_threshold, hits_found, hits, scores):
 
     for i in xrange(B_threshold):
         low = (int(np.ceil((J[i] - 0.5) * n / B)) + n) % n
         high = (int(np.ceil((J[i] + 0.5) * n / B)) + n) % n
         loc = (low * a) % n
+
+        print 'low', low, 'high', high, 'loc', loc
 
         j = low
         while j != high:
@@ -229,7 +237,7 @@ def main():
         B_k_estimation=2,
         estimation_loops=8,
         location_loops=5,
-        threshold_loops=4,
+        loop_threshold=4,
         tolerance_location=1e-8,
         tolerance_estimation=1e-8
     )

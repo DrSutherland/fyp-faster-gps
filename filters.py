@@ -76,7 +76,7 @@ def make_multiple(x, w, n, b):
     assert w <= n
 
     g = np.zeros(n, dtype=np.complex128)
-    h = np.empty(n, dtype=np.complex128)
+    h = np.zeros(n, dtype=np.complex128)
 
     g[0:w-(w/2)] = x[(w/2):]
     g[n-(w/2):] = x[:(w/2)]
@@ -99,18 +99,13 @@ def make_multiple(x, w, n, b):
     h /= max
 
     offsetc = 1
-    step = np.exp(-2*np.pi*1j*(w/2)/n)
+    step = np.exp(-2 * np.pi * 1j * (w / 2) / n)
 
     for i in xrange(n):
         h[i] *= offsetc
         offsetc *= step
 
-    g = ifft(h)
-
-    x = g
-
-    for i in xrange(w):
-        x[i] /= n
+    x = ifft(h)
 
     return {
         'time': x,
