@@ -2,10 +2,11 @@ __author__ = 'jyl111'
 
 import utils
 
+import matplotlib.pyplot as plt
 import numpy as np
-from scipy.fftpack import fft, ifft, fftshift
 
 import filters
+from fourier_transforms import fft, ifft
 from parameters import Parameters
 
 
@@ -95,11 +96,11 @@ def outer_loop(params, x, filter_location, filter_estimation):
     permute_b = np.empty(params.total_loops)
     x_samp = []
 
-    for i in xrange(params.total_loops):
-        if i < params.location_loops:
-            x_samp.append(np.zeros(params.B_estimation, dtype=np.complex128))
-        else:
-            x_samp.append(np.zeros(params.B_location, dtype=np.complex128))
+    # for i in xrange(params.total_loops):
+    #     if i < params.location_loops:
+    #         x_samp.append(np.zeros(params.B_location, dtype=np.complex128))
+    #     else:
+    #         x_samp.append(np.zeros(params.B_estimation, dtype=np.complex128))
 
     hits_found = 0
     hits = np.zeros(params.n)
@@ -117,19 +118,22 @@ def outer_loop(params, x, filter_location, filter_estimation):
             # print 'check', a, params.n, utils.gcd(a, params.n)
         ai = utils.mod_inverse(a, params.n)
 
-        print('Using {0}x ({1}^-1)'.format(a, ai))
-
         permute[i] = ai
         permute_b[i] = b
 
         perform_location = i < params.location_loops
-        filter = filter_location if perform_location else filter_estimation
-        current_B = params.B_location if perform_location else params.B_estimation
+
+        if perform_location:
+            current_filter = filter_location
+            current_B = params.B_location
+        else:
+            current_filter = filter_estimation
+            current_B = params.B_estimation
 
         inner_loop_locate_result = inner_loop_locate(
             x=x,
             n=params.n,
-            filter=filter,
+            filt=current_filter,
             B=current_B,
             B_threshold=params.B_threshold,
             a=a,
@@ -137,6 +141,9 @@ def outer_loop(params, x, filter_location, filter_estimation):
             b=b
         )
 
+        x_samp.append(inner_loop_locate_result['x_samp'])
+        # assert x_samp[i].shape == inner_loop_locate_result['x_samp'].shape
+        # print i, x_samp[i].shape, inner_loop_locate_result['x_samp'].shape
         assert inner_loop_locate_result['J'].size == params.B_threshold
 
         if perform_location:
@@ -156,31 +163,50 @@ def outer_loop(params, x, filter_location, filter_estimation):
             hits = inner_loop_filter_result['hits']
             scores = inner_loop_filter_result['scores']
 
-        print params.B_threshold, inner_loop_locate_result['J'][0], inner_loop_locate_result['J'][1], hits_found
+        # print params.B_threshold, inner_loop_locate_result['J'][0], inner_loop_locate_result['J'][1], hits_found
 
     print('Number of candidates: {0}'.format(hits_found))
 
 
-def inner_loop_locate(x, n, filter, B, B_threshold, a, ai, b):
+def inner_loop_locate(x, n, filt, B, B_threshold, a, ai, b):
     assert n % B == 0
 
     x_t_samp = np.zeros(B, dtype=np.complex128)
 
     # Permutate and dot product
-    idx = b
-    for i in xrange(filter['size']):
-        x_t_samp[i % B] += x[idx] * filter['time'][i]
-        idx = (idx + ai) % n
+    index = b
+    for i in xrange(filt['size']):
+        x_t_samp[i % B] += x[index] * filt['time'][i]
+        index = (index + ai) % n
 
-    x_samp = fft(x_t_samp)
+    x_samp = fft(x_t_samp, n=B)
+
+    # samples = np.empty(B)
+    # for i in xrange(B):
+    #     samples[i] = np.abs(x_samp[i])
+    # np.testing.assert_array_equal(np.abs(x_samp), samples)
 
     samples = np.empty(B)
     for i in xrange(B):
-        samples[i] = np.abs(x_samp[i])
+        # samples[i] = np.square(np.abs(x_samp[i]))
+        samples[i] = x_samp[i].real*x_samp[i].real + x_samp[i].imag*x_samp[i].imag
 
-    J = np.argsort(samples)[:B_threshold]
+    J = np.argsort(samples)[::-1][:B_threshold]
 
-    np.testing.assert_array_equal(samples.take(J), np.sort(samples)[:B_threshold])
+    np.testing.assert_array_equal(samples.take(J), np.sort(samples)[::-1][:B_threshold])
+
+    debug_inner_loop_locate(
+        x=x,
+        n=n,
+        filt=filt,
+        B_threshold=B_threshold,
+        B=B,
+        a=a,
+        ai=ai,
+        b=b,
+        J=J,
+        samples=samples
+    )
 
     return {
         'x_samp': x_samp,
@@ -189,13 +215,12 @@ def inner_loop_locate(x, n, filter, B, B_threshold, a, ai, b):
 
 
 def inner_loop_filter(J, B, B_threshold, n, a, loop_threshold, hits_found, hits, scores):
-
     for i in xrange(B_threshold):
         low = (int(np.ceil((J[i] - 0.5) * n / B)) + n) % n
         high = (int(np.ceil((J[i] + 0.5) * n / B)) + n) % n
         loc = (low * a) % n
 
-        print 'low', low, 'high', high, 'loc', loc
+        # print 'low', low, 'high', high, 'loc', loc
 
         j = low
         while j != high:
@@ -214,18 +239,82 @@ def inner_loop_filter(J, B, B_threshold, n, a, loop_threshold, hits_found, hits,
         'hits': hits,
         'scores': scores
     }
-  # for(int i = 0; i < num; i++){
-  #   int low, high;
-  #   low = (int(ceil((J[i] - 0.5) * n / B)) + n)%n;
-  #   high = (int(ceil((J[i] + 0.5) * n / B)) + n)%n;
-  #   int loc = timesmod(low, a, n);
-  #   for(int j = low; j != high; j = (j + 1)%n) {
-  #     score[loc]++;
-  #     if(score[loc]==loop_threshold)
-  #       hits[hits_found++]=loc;
-  #     loc = (loc + a)%n;
-  #   }
-  # }
+
+
+def debug_inner_loop_locate(x, n, filt, B_threshold, B, a, ai, b, J, samples):
+    np.testing.assert_array_equal(samples.take(J), np.sort(samples)[::-1][:B_threshold])
+
+    x_f = np.empty(n, dtype=np.complex128)
+    pxdotg = np.zeros(n, dtype=np.complex128)
+    # pxdotgn = np.empty(n, dtype=np.complex128)
+    # pxdotgw = np.empty(n, dtype=np.complex128)
+
+    fft_large = np.array([])
+    fft_large_t = np.array([])
+
+    index = b
+    for i in xrange(n):
+        x_f[i] = x[index]
+        index = (index + ai) % n
+
+    w = filt['size']
+    pxdotg[:w] = x_f[:w]
+    for i in xrange(w):
+        pxdotg[i] *= filt['time'][i]
+
+    print('Using {0}x ({1}^-1)'.format(a, ai))
+
+    x_f = fft(x_f, n=n)
+    pxdotgn = fft(pxdotg, n=n)
+    pxdotgw = fft(pxdotg, n=w)
+
+    t_n = np.linspace(0, 1, num=n, endpoint=False)
+    t_w = np.linspace(0, 1, num=w, endpoint=False)
+    t_B = np.linspace(0, 1, num=B, endpoint=False)
+
+    for i in xrange(B_threshold):
+        np.testing.assert_approx_equal(J[i] / float(B),  t_B[J[i]])
+
+        if J[i]:
+            fft_large_t = np.append(fft_large_t, (J[i] - 0.1) / float(B))
+            fft_large = np.append(fft_large, 0)
+
+        fft_large_t = np.append(fft_large_t, J[i] / float(B))
+        # fft_large_t = np.append(fft_large_t, t_B[J[i]])
+        # fft_large = np.append(fft_large, np.sqrt(samples[J[i]]))
+        fft_large = np.append(fft_large, np.sqrt(samples[J[i]]) * n)
+        # fft_large = np.append(fft_large, 1)
+
+        if J[i] < B - 1:
+            fft_large_t = np.append(fft_large_t, (J[i] + 0.1) / float(B))
+            fft_large = np.append(fft_large, 0)
+
+    print fft_large_t
+    print fft_large
+
+    fig = plt.figure()
+    ax = fig.gca()
+    ax.plot(
+        t_n, np.abs(pxdotgn) * n, '-x',
+        t_w, np.abs(pxdotgw) * n, '-x',
+        t_B, np.sqrt(samples) * n, '-x',
+        fft_large_t, fft_large, '-x',
+        t_n, np.abs(x_f), '-x'
+    )
+    ax.legend(
+        (
+            'n-dim convolved FFT',
+            'w-dim convolved FFT',
+            'sampled convolved FFT',
+            'largest in sample',
+            'true FFT'
+        )
+    )
+
+    # fig = plt.figure()
+    # ax = fig.gca()
+    # ax.plot(self.t, self.x.real, self.t, self.x.imag)
+    # ax.legend(('Real', 'Imaginary'))
 
 
 def main():
@@ -245,8 +334,11 @@ def main():
     from simulation import Simulation
 
     sim = Simulation(params=params)
+    sim.plot()
 
     execute(params=params, x=sim.x)
+
+    plt.show()
 
 
 if __name__ == '__main__':

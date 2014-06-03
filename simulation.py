@@ -2,8 +2,8 @@ from __future__ import division
 
 __author__ = 'jyl111'
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
 import fourier_transforms
 from parameters import Parameters
@@ -95,8 +95,6 @@ class Simulation:
         ax.legend(('Real', 'Imaginary'))
         ax.set_xlim(right=self.t.shape[-1]-1)
 
-        plt.show()
-
 
 def main():
     params = Parameters(
@@ -105,6 +103,7 @@ def main():
     )
     sim = Simulation(params=params)
     sim.plot()
+    plt.show()
 
 
 if __name__ == '__main__':

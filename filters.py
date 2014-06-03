@@ -1,8 +1,8 @@
 import numpy as np
 from scipy import signal
-from scipy.fftpack import fft, ifft, fftshift
 import matplotlib.pyplot as plt
 
+from fourier_transforms import fft, ifft, fftshift
 from parameters import Parameters
 
 __author__ = 'jyl111'
@@ -59,7 +59,7 @@ def generate_dolph_chebyshev(lobe_fraction, tolerance):
     for i in xrange(w):
         x[i] = cheb(w - 1, beta * np.cos(np.pi * i / w)) * tolerance
 
-    x = fft(x, overwrite_x=True)
+    x = fft(x, n=w)
     x = fftshift(x)
     x = np.real(x)
 
@@ -81,7 +81,7 @@ def make_multiple(x, w, n, b):
     g[0:w-(w/2)] = x[(w/2):]
     g[n-(w/2):] = x[:(w/2)]
 
-    g = fft(g)
+    g = fft(g, n=n)
 
     s = 0
     for i in xrange(b):
@@ -105,7 +105,7 @@ def make_multiple(x, w, n, b):
         h[i] *= offsetc
         offsetc *= step
 
-    x = ifft(h)
+    x = ifft(h, n=n)
 
     return {
         'time': x,
