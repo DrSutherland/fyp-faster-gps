@@ -3,8 +3,9 @@ from __future__ import division
 __author__ = 'jyl111'
 
 import numpy as np
-import fourier_transforms
+import matplotlib.pyplot as plt
 
+import fourier_transforms
 from parameters import Parameters
 import sfft
 
@@ -76,33 +77,34 @@ class Simulation:
     def generate_output(self):
         self.y = fourier_transforms.fft(self.x)
 
+    def plot(self):
+        fig = plt.figure()
+        ax = fig.gca()
+        ax.plot(self.t, self.x.real, 'b-', self.t, self.x.imag, 'r--')
+        ax.legend(('Real', 'Imaginary'))
+        ax.set_xlim(right=self.t.shape[-1]-1)
+
+        fig = plt.figure()
+        ax = fig.gca()
+        ax.plot(self.t, self.x_f)
+        ax.set_xlim(right=self.t.shape[-1]-1)
+
+        fig = plt.figure()
+        ax = fig.gca()
+        ax.plot(self.t, self.y.real, 'b-', self.t, self.y.imag, 'r--')
+        ax.legend(('Real', 'Imaginary'))
+        ax.set_xlim(right=self.t.shape[-1]-1)
+
+        plt.show()
+
+
 def main():
     params = Parameters(
         n=1024,
         k=10,
     )
     sim = Simulation(params=params)
-
-    import matplotlib.pyplot as plt
-
-    fig = plt.figure()
-    ax = fig.gca()
-    ax.plot(sim.t, sim.x.real, 'b-', sim.t, sim.x.imag, 'r--')
-    ax.legend(('Real', 'Imaginary'))
-    ax.set_xlim(right=sim.t.shape[-1]-1)
-
-    fig = plt.figure()
-    ax = fig.gca()
-    ax.plot(sim.t, sim.x_f)
-    ax.set_xlim(right=sim.t.shape[-1]-1)
-
-    fig = plt.figure()
-    ax = fig.gca()
-    ax.plot(sim.t, sim.y.real, 'b-', sim.t, sim.y.imag, 'r--')
-    ax.legend(('Real', 'Imaginary'))
-    ax.set_xlim(right=sim.t.shape[-1]-1)
-
-    plt.show()
+    sim.plot()
 
 
 if __name__ == '__main__':
