@@ -65,3 +65,15 @@ def floor_to_pow2(a):
         ans <<= 1
 
     return int(ans/2)
+
+
+# http://en.literateprograms.org/index.php?title=Special:DownloadCode/Nth_element_(Python)&oldid=9341
+def qnth(sample, n):
+    pivot = sample[0]
+    below = [s for s in sample if s < pivot]
+    above = [s for s in sample if s > pivot]
+    i, j = len(below), len(sample)-len(above)
+
+    if n < i:      return qnth(below, n)
+    elif n >= j:   return qnth(above, n-j)
+    else:          return pivot

@@ -10,7 +10,9 @@ from fourier_transforms import fft, ifft
 from parameters import Parameters
 
 
-def execute(params, x):
+def execute(params, simulation):
+    x = simulation.x
+
     print('sFFT filter parameters for n={0}, k={1}'.format(params.n, params.k))
 
     print('Location filter: (numlobes={numlobes}, tol={tol}, b={b}) B: {B_threshold}/{B}, loops: {loop_threshold}/{loops}'.format(
@@ -84,6 +86,7 @@ def execute(params, x):
 
     # todo repetitions
     outer_loop(
+        simulation=simulation,
         params=params,
         x=x,
         filter_location=filter_location,
@@ -91,7 +94,7 @@ def execute(params, x):
     )
 
 
-def outer_loop(params, x, filter_location, filter_estimation):
+def outer_loop(simulation, params, x, filter_location, filter_estimation):
     permute = np.empty(params.total_loops)
     permute_b = np.empty(params.total_loops)
     x_samp = []
@@ -166,6 +169,46 @@ def outer_loop(params, x, filter_location, filter_estimation):
         # print params.B_threshold, inner_loop_locate_result['J'][0], inner_loop_locate_result['J'][1], hits_found
 
     print('Number of candidates: {0}'.format(hits_found))
+
+    # Estimate values
+    answers = estimate_values(
+        hits=hits,
+        hits_found=hits_found,
+        x_samp=x_samp,
+        loops=params.total_loops,
+        n=params.n,
+        permute=permute,
+        B_location=params.B_location,
+        B_estimation=params.B_estimation,
+        filter_location=filter_location,
+        filter_estimation=filter_estimation,
+        location_loops=params.location_loops
+    )
+
+    x = np.zeros(params.n)
+    for location, value in answers.iteritems():
+        print 'got', int(location), np.abs(value)
+        x[int(location)] = np.abs(value)
+
+    xc = np.zeros(params.n)
+    for i in xrange(params.n):
+        xc[i] = scores[i] * 1./ params.total_loops
+
+    fig = plt.figure()
+    ax = fig.gca()
+    ax.plot(
+        simulation.t, xc, '-x',
+        simulation.t, simulation.x_f * params.n, '-x',
+        simulation.t, x * params.n, '-.x',
+    )
+    ax.legend(
+        (
+            'counts',
+            'true signal',
+            'reconstruction'
+        )
+    )
+    ax.set_xlim(right=simulation.t.shape[-1]-1)
 
 
 def inner_loop_locate(x, n, filt, B, B_threshold, a, ai, b):
@@ -317,6 +360,49 @@ def debug_inner_loop_locate(x, n, filt, B_threshold, B, a, ai, b, J, samples):
     # ax.legend(('Real', 'Imaginary'))
 
 
+def estimate_values(hits, hits_found, x_samp, loops, n, permute, B_location, B_estimation, filter_location, filter_estimation, location_loops):
+    answers = {}
+    reals = np.zeros(loops)
+    imags = np.zeros(loops)
+
+    for i in xrange(hits_found):
+        for j in xrange(loops):
+            if j < location_loops:
+                current_B = B_location
+                current_filter = filter_location
+            else:
+                current_B = B_estimation
+                current_filter = filter_estimation
+
+            permuted_index = (permute[j] * hits[i]) % n
+            hashed_to = permuted_index / (n / current_B)
+            dist = permuted_index % (n / current_B)
+
+            if dist > (n / current_B) / 2:
+                hashed_to = (hashed_to + 1) % current_B
+                dist -= n / current_B
+
+            dist = (n - dist) % n
+            filter_value = current_filter['freq'][dist]
+
+            reals[j] = (x_samp[j][hashed_to] / filter_value).real
+            imags[j] = (x_samp[j][hashed_to] / filter_value).imag
+
+        location = (loops - 1) / 2
+
+        # nth_element?
+        print reals
+
+        reals = np.sort(reals)
+        imags = np.sort(imags)
+
+        print reals
+
+        answers[hits[i]] = reals[location] + 1j * imags[location]
+
+    return answers
+
+
 def main():
     # ./experiment -N 1024 -K 1 -B 4 -E 2 -L 8 -l 5 -r 4 -t 1e-8 -e 1e-8
     params = Parameters(
@@ -336,7 +422,7 @@ def main():
     sim = Simulation(params=params)
     sim.plot()
 
-    execute(params=params, x=sim.x)
+    execute(params=params, simulation=sim)
 
     plt.show()
 
