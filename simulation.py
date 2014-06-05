@@ -19,7 +19,11 @@ class Simulation:
         self.x_f = np.zeros(self.params.n)
         self.y = np.zeros(self.params.n, dtype=np.complex128)
 
-        self.generate_frequencies()
+        # Generate k random indices
+        self.indices = np.random.randint(self.params.n, size=self.params.k)
+
+        # Set values of locations to 1.0
+        self.x_f[self.indices] = 1.0
 
         self.generate_input()
         self.add_noise_to_input()
@@ -29,15 +33,6 @@ class Simulation:
         # self.execute_sfft()
 
         # self.generate_output()
-
-    def generate_frequencies(self):
-        """Generate locations of k random frequencies"""
-
-        # Generate k random indices
-        indices = np.random.randint(self.params.n, size=self.params.k)
-
-        # Set values of locations to 1.0
-        self.x_f[indices] = 1.0
 
     def generate_input(self):
         """Generate time domain signal"""

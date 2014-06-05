@@ -85,16 +85,52 @@ def execute(params, simulation):
     print('Noise in filter: Location: {0}, Estimation: {1}'.format(filter_noise_location, filter_noise_estimation))
 
     # todo repetitions
-    outer_loop(
+    outer_loop_result = outer_loop(
         simulation=simulation,
         params=params,
-        x=x,
+        x_f=x,
         filter_location=filter_location,
         filter_estimation=filter_estimation
     )
 
+    x_f = outer_loop_result['x_f']
+    answers = outer_loop_result['answers']
 
-def outer_loop(simulation, params, x, filter_location, filter_estimation):
+    # calculate errors
+    x_f_Large = np.zeros(params.n)
+    ans_Large = np.zeros(params.n, dtype=np.complex128)
+
+    for location, value in answers.iteritems():
+        ans_Large[location] = answers[location]
+
+    x_f_Large[simulation.indices] = simulation.x_f[simulation.indices]
+
+
+    large_found = 0
+    FOUND = 0
+    for i in xrange(params.k):
+        if simulation.indices[i] in answers.keys():
+            FOUND += 1
+
+        if ans_Large[simulation.indices[i]] != 0:
+            large_found += 1
+
+    ERROR = 0
+    for i in xrange(params.n):
+        ERROR += np.abs(ans_Large[i] - x_f_Large[i])
+
+    print('K={k}; MISSED (estimation, result) = ({estimation}, {result}); L1 ERROR = {error} ({error_per} per large freq)'.format(
+        k=params.k,
+        estimation=params.k-FOUND,
+        result=params.k-large_found,
+        error=ERROR,
+        error_per=ERROR/params.k
+    ))
+
+    return x_f
+
+
+def outer_loop(simulation, params, x_f, filter_location, filter_estimation):
     permute = np.empty(params.total_loops)
     permute_b = np.empty(params.total_loops)
     x_samp = []
@@ -134,7 +170,7 @@ def outer_loop(simulation, params, x, filter_location, filter_estimation):
             current_B = params.B_estimation
 
         inner_loop_locate_result = inner_loop_locate(
-            x=x,
+            x=x_f,
             n=params.n,
             filt=current_filter,
             B=current_B,
@@ -185,21 +221,24 @@ def outer_loop(simulation, params, x, filter_location, filter_estimation):
         location_loops=params.location_loops
     )
 
-    x = np.zeros(params.n)
+    # Reconstructed signal
+    x_f = np.zeros(params.n)
     for location, value in answers.iteritems():
         print 'got', int(location), np.abs(value)
-        x[int(location)] = np.abs(value)
+        x_f[int(location)] = np.abs(value)
 
+    # Counts
     xc = np.zeros(params.n)
     for i in xrange(params.n):
         xc[i] = scores[i] * 1./ params.total_loops
 
+    # debug
     fig = plt.figure()
     ax = fig.gca()
     ax.plot(
         simulation.t, xc, '-x',
         simulation.t, simulation.x_f * params.n, '-x',
-        simulation.t, x * params.n, '-.x',
+        simulation.t, x_f * params.n, '-.x',
     )
     ax.legend(
         (
@@ -209,6 +248,11 @@ def outer_loop(simulation, params, x, filter_location, filter_estimation):
         )
     )
     ax.set_xlim(right=simulation.t.shape[-1]-1)
+
+    return {
+        'x_f': x_f,
+        'answers': answers
+    }
 
 
 def inner_loop_locate(x, n, filt, B, B_threshold, a, ai, b):
@@ -414,7 +458,8 @@ def main():
         location_loops=5,
         loop_threshold=4,
         tolerance_location=1e-8,
-        tolerance_estimation=1e-8
+        tolerance_estimation=1e-8,
+        snr=0.5
     )
 
     from simulation import Simulation
