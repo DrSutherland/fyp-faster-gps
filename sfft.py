@@ -1,5 +1,3 @@
-__author__ = 'jyl111'
-
 import utils
 
 import matplotlib.pyplot as plt
@@ -9,10 +7,9 @@ import filters
 from fourier_transforms import fft, ifft
 from parameters import Parameters
 
+__author__ = 'jyl111'
 
-def execute(params, simulation):
-    x = simulation.x
-
+def execute(params, x, simulation=None):
     print('sFFT filter parameters for n={0}, k={1}'.format(params.n, params.k))
 
     print('Location filter: (numlobes={numlobes}, tol={tol}, b={b}) B: {B_threshold}/{B}, loops: {loop_threshold}/{loops}'.format(
@@ -93,44 +90,45 @@ def execute(params, simulation):
         filter_estimation=filter_estimation
     )
 
-    x_f = outer_loop_result['x_f']
-    answers = outer_loop_result['answers']
+    if simulation is not None:
+        x_f = outer_loop_result['x_f']
+        answers = outer_loop_result['answers']
 
-    # calculate errors
-    x_f_Large = np.zeros(params.n)
-    ans_Large = np.zeros(params.n, dtype=np.complex128)
+        # calculate errors
+        x_f_Large = np.zeros(params.n)
+        ans_Large = np.zeros(params.n, dtype=np.complex128)
 
-    for location, value in answers.iteritems():
-        ans_Large[location] = answers[location]
+        for location, value in answers.iteritems():
+            ans_Large[location] = answers[location]
 
-    x_f_Large[simulation.indices] = simulation.x_f[simulation.indices]
+        x_f_Large[simulation.indices] = simulation.x_f[simulation.indices]
 
 
-    large_found = 0
-    FOUND = 0
-    for i in xrange(params.k):
-        if simulation.indices[i] in answers.keys():
-            FOUND += 1
+        large_found = 0
+        FOUND = 0
+        for i in xrange(params.k):
+            if simulation.indices[i] in answers.keys():
+                FOUND += 1
 
-        if ans_Large[simulation.indices[i]] != 0:
-            large_found += 1
+            if ans_Large[simulation.indices[i]] != 0:
+                large_found += 1
 
-    ERROR = 0
-    for i in xrange(params.n):
-        ERROR += np.abs(ans_Large[i] - x_f_Large[i])
+        ERROR = 0
+        for i in xrange(params.n):
+            ERROR += np.abs(ans_Large[i] - x_f_Large[i])
 
-    print('K={k}; MISSED (estimation, result) = ({estimation}, {result}); L1 ERROR = {error} ({error_per} per large freq)'.format(
-        k=params.k,
-        estimation=params.k-FOUND,
-        result=params.k-large_found,
-        error=ERROR,
-        error_per=ERROR/params.k
-    ))
+        print('K={k}; MISSED (estimation, result) = ({estimation}, {result}); L1 ERROR = {error} ({error_per} per large freq)'.format(
+            k=params.k,
+            estimation=params.k-FOUND,
+            result=params.k-large_found,
+            error=ERROR,
+            error_per=ERROR/params.k
+        ))
 
     return x_f
 
 
-def outer_loop(simulation, params, x_f, filter_location, filter_estimation):
+def outer_loop(params, x_f, filter_location, filter_estimation, simulation=None):
     permute = np.empty(params.total_loops)
     permute_b = np.empty(params.total_loops)
     x_samp = []
@@ -233,21 +231,22 @@ def outer_loop(simulation, params, x_f, filter_location, filter_estimation):
         xc[i] = scores[i] * 1./ params.total_loops
 
     # debug
-    fig = plt.figure()
-    ax = fig.gca()
-    ax.plot(
-        simulation.t, xc, '-x',
-        simulation.t, simulation.x_f * params.n, '-x',
-        simulation.t, x_f * params.n, '-.x',
-    )
-    ax.legend(
-        (
-            'counts',
-            'true signal',
-            'reconstruction'
+    if simulation is not None:
+        fig = plt.figure()
+        ax = fig.gca()
+        ax.plot(
+            simulation.t, xc, '-x',
+            simulation.t, simulation.x_f * params.n, '-x',
+            simulation.t, x_f * params.n, '-.x',
         )
-    )
-    ax.set_xlim(right=simulation.t.shape[-1]-1)
+        ax.legend(
+            (
+                'counts',
+                'true signal',
+                'reconstruction'
+            )
+        )
+        ax.set_xlim(right=simulation.t.shape[-1]-1)
 
     return {
         'x_f': x_f,
@@ -467,7 +466,7 @@ def main():
     sim = Simulation(params=params)
     sim.plot()
 
-    execute(params=params, simulation=sim)
+    execute(params=params, x=sim.x, simulation=sim)
 
     plt.show()
 
