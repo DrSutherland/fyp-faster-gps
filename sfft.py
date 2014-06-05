@@ -262,7 +262,7 @@ def inner_loop_locate(x, n, filt, B, B_threshold, a, ai, b):
     # Permutate and dot product
     index = b
     for i in xrange(filt['size']):
-        x_t_samp[i % B] += x[index] * filt['time'][i]
+        x_t_samp[i % B] += (x[index] * filt['time'][i])
         index = (index + ai) % n
 
     x_samp = fft(x_t_samp, n=B)
