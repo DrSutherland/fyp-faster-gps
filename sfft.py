@@ -1,11 +1,10 @@
-import utils
-
 import matplotlib.pyplot as plt
 import numpy as np
 
 import filters
 from fourier_transforms import fft, ifft
 from parameters import Parameters
+import utils
 
 __author__ = 'jyl111'
 
@@ -90,9 +89,10 @@ def execute(params, x, simulation=None):
         filter_estimation=filter_estimation
     )
 
+    x_f = outer_loop_result['x_f']
+    answers = outer_loop_result['answers']
+
     if simulation is not None:
-        x_f = outer_loop_result['x_f']
-        answers = outer_loop_result['answers']
 
         # calculate errors
         x_f_Large = np.zeros(params.n)
@@ -457,8 +457,7 @@ def main():
         location_loops=5,
         loop_threshold=4,
         tolerance_location=1e-8,
-        tolerance_estimation=1e-8,
-        snr=0.5
+        tolerance_estimation=1e-8
     )
 
     from simulation import Simulation
