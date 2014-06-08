@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.signal import decimate
 
 import ca_code
 import fourier_transforms
@@ -13,6 +14,10 @@ def main():
     code_2 = ca_code.generate(prn=1).reshape((-1,))
 
     # fftshift(ifft(fft(a,corrLength).*conj(fft(b,corrLength))))
+
+    q = 4
+    code_1 = decimate(code_1, q)
+    code_2 = decimate(code_2, q)
 
     code_1_fft = fourier_transforms.fft(code_1)
     code_2_fft = fourier_transforms.fft(code_2)
