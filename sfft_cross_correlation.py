@@ -22,7 +22,7 @@ def main():
     code_1_fft = fourier_transforms.fft(code_1)
     code_2_fft = fourier_transforms.fft(code_2)
 
-    multiplied = np.multiply(code_1_fft, np.conjugate(code_2_fft))
+    multiplied = code_1_fft * np.conj(code_2_fft)
 
     print multiplied.size
 
@@ -49,7 +49,7 @@ def main():
     fig = plt.figure()
     ax = fig.gca()
     ax.plot(np.linspace(-1, 1, result.size), np.abs(result))
-    ax.plot(np.linspace(-1, 1, result_actual.size), result_actual)
+    ax.plot(np.linspace(-1, 1, result_actual.size), np.abs(result_actual))
     plt.show()
 
 
