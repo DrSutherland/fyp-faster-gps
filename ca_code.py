@@ -58,10 +58,10 @@ def generate(prn, repeats=1):
     prn = np.array(prn)
 
     # Allocate G1 (shift register)
-    sr1 = np.ones([prn.size, POLYNOMIAL_1.size])
+    sr1 = np.ones([prn.size, POLYNOMIAL_1.size], dtype=int)
 
     # Allocate G2 (shift register)
-    sr2 = np.ones([prn.size, POLYNOMIAL_2.size])
+    sr2 = np.ones([prn.size, POLYNOMIAL_2.size], dtype=int)
 
     # Get phase tap indices for selected PRN
     phase_taps = get_phase_taps(prn=prn)
@@ -71,7 +71,7 @@ def generate(prn, repeats=1):
     sr_length = (2 ** SR_SIZE) - 1
 
     # Allocate G3 (output)
-    output = np.zeros([prn.size, sr_length])
+    output = np.zeros([prn.size, sr_length], dtype=int)
 
     # Generate C/A code sequence
     for i in range(sr_length):
