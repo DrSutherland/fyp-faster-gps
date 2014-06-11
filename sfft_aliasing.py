@@ -6,24 +6,37 @@ import numpy as np
 
 def execute(a, q):
     """
+    Aliases an input signal with downsampling factor q.
+    Zero pads input if necessary.
 
     :param a: The signal to be aliased
     :param q: The downsampling factor
     :return:
     """
 
+    # Size of signal
     n = a.size
+
+    # Zero pad if remainder isn't zero
+    remainder = n % q
+    if remainder != 0:
+        zero_padding = np.zeros(remainder)
+        a = np.append(a, zero_padding)
+        n = a.size
+
+    assert n % q == 0
+
+    # Calculate number of buckets
     n_aliased = n/q
 
-    if n % q != 0:
-        raise 'n is not divisible by q'
+    # Allocate output array
+    b = np.zeros(n_aliased)
 
-    output = np.zeros(n_aliased)
-
+    # Hash each input sample into the correct output bucket
     for i in xrange(n):
-        output[i % n_aliased] += a[i]
+        b[i % n_aliased] += a[i]
 
-    return output
+    return b
 
 
 def main():
