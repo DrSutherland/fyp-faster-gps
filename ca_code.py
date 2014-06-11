@@ -51,7 +51,7 @@ def get_phase_taps(prn):
     return PHASE_TAPS[prn-1]
 
 
-def generate(prn, sampling_rate=1):
+def generate(prn, repeats=1):
     """Generates the C/A gold code given a satellite's PRN number"""
 
     # Force numpy array
@@ -91,7 +91,14 @@ def generate(prn, sampling_rate=1):
         sr2[:, -1] = np.mod(np.sum(sr2 * POLYNOMIAL_2, axis=1), 2)
         sr2 = np.roll(sr2, 1)
 
-    return np.repeat(output, repeats=sampling_rate, axis=1)
+    # Repeats sequence
+    output = np.repeat(output, repeats=repeats, axis=1)
+
+    # Return first element in matrix if only one PRN is requested
+    if prn.size == 1:
+        return output[0]
+    else:
+        return output
 
 
 def main():
