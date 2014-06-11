@@ -20,7 +20,10 @@ def execute(a, q):
     # Zero pad if remainder isn't zero
     remainder = n % q
     if remainder != 0:
-        zero_padding = np.zeros(remainder)
+        # Generate zero padding of size q - (n % q)
+        zero_padding = np.zeros(q - remainder)
+
+        # And append it to the signal
         a = np.append(a, zero_padding)
         n = a.size
 
