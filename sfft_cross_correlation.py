@@ -1,11 +1,11 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.signal import decimate
 
 import ca_code
 import fourier_transforms
 from parameters import Parameters
 import sfft, sfft_inverse
+import sfft_aliasing
 
 __author__ = 'jyl111'
 
@@ -13,11 +13,13 @@ def main():
     code_1 = ca_code.generate(prn=1).reshape((-1,))
     code_2 = ca_code.generate(prn=1).reshape((-1,))
 
+    # code_2 = np.roll(code_2, 100)
+
     # fftshift(ifft(fft(a,corrLength).*conj(fft(b,corrLength))))
 
     q = 4
-    code_1 = decimate(code_1, q)
-    code_2 = decimate(code_2, q)
+    code_1 = sfft_aliasing.execute(code_1, q)
+    code_2 = sfft_aliasing.execute(code_2, q)
 
     code_1_fft = fourier_transforms.fft(code_1)
     code_2_fft = fourier_transforms.fft(code_2)
