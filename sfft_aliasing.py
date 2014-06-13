@@ -44,13 +44,7 @@ def execute(a, q):
 
 
 def main():
-    # Generate a step sequence and then leveling off
-    # input_t = np.append(
-    #     np.linspace(0, 1, 6),
-    #     np.ones(4)
-    # )
     freq_samp = 1000
-
     freq = 100
     t = np.arange(100, dtype=float)/freq_samp
 
