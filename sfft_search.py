@@ -51,6 +51,8 @@ def fdcorr(a, b, frange):
 
 
 def plot(plot_points):
+    print plot_points.x.shape, plot_points.y.shape, plot_points.z.shape
+
     fig = plt.figure()
     ax = fig.gca(projection='3d')
     surf = ax.plot_surface(
@@ -69,7 +71,7 @@ def plot(plot_points):
 def main():
     data = loadmat('fdcorr_demo')
 
-    plot_points = fdcorr(data['rx_seg'], ca_code.generate(prn=26, sampling_rate=2), data['frange'])
+    plot_points = fdcorr(data['rx_seg'], ca_code.generate(prn=26, repeats=2), data['frange'])
 
     plot(plot_points)
 

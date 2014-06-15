@@ -19,7 +19,7 @@ def read(settings, plot_graphs=False):
 
     with open(settings['file_name'], 'rb') as f:
         if settings['byte_offset'] > 0:
-            print 'Skipping %d bytes' % settings['byte_offset']
+            print 'Skipping first %d bytes' % settings['byte_offset']
             f.seek(settings['byte_offset'], os.SEEK_SET)
 
         x = np.fromfile(f, dtype=settings['data_type'], count=samples_count)
