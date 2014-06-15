@@ -69,6 +69,20 @@ def generate_dolph_chebyshev(lobe_fraction, tolerance):
     }
 
 
+def generate_brickwall(lobe_fraction, tolerance):
+    w = int((2 / np.pi) * (1 / lobe_fraction) * np.log(1 / tolerance))
+
+    x = np.ones(w, dtype=np.complex128)
+    # x = fft(x, n=w)
+    # x = fftshift(x)
+    # x = np.real(x)
+
+    return {
+        'x': x,
+        'w': w
+    }
+
+
 def make_multiple(x, w, n, b):
     print('w = {0}, n = {1}, b = {2}'.format(w, n, b))
 

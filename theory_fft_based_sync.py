@@ -80,7 +80,6 @@ def main():
     plt.setp(plt.gca().get_xticklabels(), visible=False)
     plt.setp(plt.gca().get_yticklabels(), visible=False)
 
-    plt.tight_layout()
     plt.show()
 
 

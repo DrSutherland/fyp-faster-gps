@@ -10,14 +10,14 @@ import sfft_aliasing
 __author__ = 'jyl111'
 
 def main():
-    code_1 = ca_code.generate(prn=1) | ca_code.generate(prn=2)
+    code_1 = ca_code.generate(prn=1) | np.roll(ca_code.generate(prn=2), 100)
     code_2 = ca_code.generate(prn=1)
 
     # code_2 = np.roll(code_2, 100)
 
     # fftshift(ifft(fft(a,corrLength).*conj(fft(b,corrLength))))
 
-    q = 4
+    q = 2
     code_1 = sfft_aliasing.execute(code_1, q)
     code_2 = sfft_aliasing.execute(code_2, q)
 
