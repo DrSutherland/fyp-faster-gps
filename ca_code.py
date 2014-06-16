@@ -124,6 +124,13 @@ def generate_table(settings):
     return table
 
 
+def generate_from_settings(settings, prn):
+    samples_per_code = int(round(settings['sampling_frequency'] * settings['code_length'] / settings['code_frequency']))
+    repeats = samples_per_code / settings['code_length']
+
+    return generate(prn=prn).repeat(repeats)
+
+
 def main():
     # Generate C/A codes given an array of PRN values
     ca_codes = generate(prn=ALL_PRNS)

@@ -6,16 +6,20 @@ import numpy as np
 from scipy import signal
 
 
-def read(settings, plot_graphs=False):
+def read(settings, plot_graphs=False, debug=False):
     # Calculate number of samples per spreading code (corresponding to 1ms of data)
     samples_per_code = int(round(settings['sampling_frequency'] * settings['code_length'] / float(settings['code_frequency'])))
-    print 'There are %d samples per code' % samples_per_code
+
+    if debug:
+        print 'There are %d samples per code' % samples_per_code
 
     # Milliseconds of data to plot
     ms_to_plot = 10
 
     samples_count = samples_per_code * ms_to_plot
-    print 'Taking %d samples' % samples_count
+
+    if debug:
+        print 'Taking %d samples' % samples_count
 
     with open(settings['file_name'], 'rb') as f:
         if settings['byte_offset'] > 0:
