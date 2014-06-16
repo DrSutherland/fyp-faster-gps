@@ -13,7 +13,7 @@ from scipy import signal
 import ca_code
 
 
-def acquisition(x, settings, plot_graphs=False):
+def acquisition(x, settings, plot_graphs=False, plot_3d_graphs=False):
     # Calculate number of samples per spreading code (corresponding to 1ms of data)
     samples_per_code = int(round(settings['sampling_frequency'] * settings['code_length'] / settings['code_frequency']))
     print 'samples_per_code = %s' % repr(samples_per_code)
@@ -23,8 +23,6 @@ def acquisition(x, settings, plot_graphs=False):
     x_2 = x[samples_per_code:2*samples_per_code]
     print 'x_1.shape = %s' % repr(x_1.shape)
     print 'x_2.shape = %s' % repr(x_2.shape)
-
-    # x_0dc = x - np.mean(x)
 
     # Calculate sampling period
     sampling_period = 1.0 / settings['sampling_frequency']
@@ -68,7 +66,9 @@ def acquisition(x, settings, plot_graphs=False):
     for idx, prn in enumerate(settings['satellites_to_search']):
         print '* searching PRN = %s' % (repr(prn),)
 
-        # Scan Doppler frequencies
+        #
+        # Scan all Doppler shifts
+        #
         for freq_bin_i in xrange(n_frequency_bins):
             # Generate local sine and cosine carriers
             carrier_sin = np.sin(frequency_bins[freq_bin_i] * phases)
@@ -122,22 +122,26 @@ def acquisition(x, settings, plot_graphs=False):
         assert all_results.max() == peak_value
         print 'peak_value = %s' % repr(peak_value)
 
-        # if plot_graphs:
-        #     print np.arange(1023*16).reshape((1, -1)).shape, frequency_bins.shape, all_results.shape
-        #
-        #     fig = plt.figure()
-        #     ax = fig.gca(projection='3d')
-        #     surf = ax.plot_surface(
-        #         X=np.arange(1023*16).reshape((1, -1)),
-        #         Y=frequency_bins.reshape((-1, 1)),
-        #         Z=all_results,
-        #         rstride=1,
-        #         cstride=1,
-        #         cmap=matplotlib.cm.coolwarm,
-        #         linewidth=0,
-        #         antialiased=False,
-        #     )
-        #     plt.show()
+        if plot_3d_graphs:
+            fig = plt.figure()
+            doppler_shifts__khz = (
+                (settings['acquisition_search_frequency_step'] * np.arange(n_frequency_bins)) -
+                (settings['acquisition_search_frequency_band'] / 2)
+            ) / 1000
+
+            ax = fig.gca(projection='3d')
+            surf = ax.plot_surface(
+                X=np.arange(samples_per_code).reshape((1, -1)),
+                Y=doppler_shifts__khz.reshape((-1, 1)),
+                Z=all_results,
+                rstride=1,
+                cstride=1,
+                cmap=matplotlib.cm.coolwarm,
+                linewidth=0,
+                antialiased=False,
+            )
+            ax.set_xlabel('Code shift')
+            ax.set_ylabel('Doppler shift (kHz)')
 
         # Calculate code phase range
         samples_per_code_chip = int(round(settings['sampling_frequency'] / settings['code_frequency']))
@@ -181,12 +185,33 @@ def acquisition(x, settings, plot_graphs=False):
         #
         # Thresholding
         #
+
         if peak_ratio > settings['acquisition_threshold']:
             output['found'][idx] = True
             print '-> %s FOUND' % repr(prn)
         else:
             output['found'][idx] = False
             print '-> %s NOT FOUND' % repr(prn)
+
+    if plot_graphs:
+        plt.figure()
+        colors = ['r' if found else 'b' for found in output['found']]
+        plt.bar(settings['satellites_to_search'], output['peak_ratios'], color=colors, align='center')
+        plt.ylabel('Acquisition quality')
+        plt.xlabel('PRN number')
+
+        artist__not_acquired = plt.Rectangle((0, 0), 1, 1, fc='b')
+        artist__acquired = plt.Rectangle((0, 0), 1, 1, fc='r')
+        plt.legend((
+            artist__not_acquired,
+            artist__acquired
+        ), (
+            'Signal not acquired',
+            'Signal acquired'
+        ))
+        plt.xlim(0, settings['satellites_total'] + 1)
+
+        plt.tight_layout()
 
     return output
 
@@ -211,22 +236,5 @@ if __name__ == '__main__':
 
     x = gps_data_reader.read(settings)
 
-    results = acquisition(x, settings, plot_graphs=True)
-
-    plt.figure()
-    colors = ['r' if found else 'b' for found in results['found']]
-    plt.bar(settings['satellites_to_search'], results['peak_ratios'], color=colors, align='center')
-    plt.ylabel('Acquisition quality')
-    plt.xlabel('PRN number')
-
-    artist__not_acquired = plt.Rectangle((0, 0), 1, 1, fc='b')
-    artist__acquired = plt.Rectangle((0, 0), 1, 1, fc='r')
-    plt.legend((
-        artist__not_acquired,
-        artist__acquired
-    ), (
-        'Signal not acquired',
-        'Signal acquired'
-    ))
-
+    results = acquisition(x, settings, plot_graphs=True, plot_3d_graphs=False)
     plt.show()
