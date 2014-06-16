@@ -1,3 +1,7 @@
+from __future__ import division
+
+__author__ = 'jyl111'
+
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -45,6 +49,9 @@ POLYNOMIAL_2 = np.array([0, 1, 1, 0, 0, 1, 0, 1, 1, 1])
 
 # Shift register size
 SR_SIZE = 10
+
+# Range of all possible PRNs
+ALL_PRNS = np.arange(1, PHASE_TAPS.shape[0] + 1)
 
 
 def get_phase_taps(prn):
@@ -101,12 +108,25 @@ def generate(prn, repeats=1):
         return output
 
 
-def main():
-    # Generate PRN values to generate
-    prns = np.arange(1, PHASE_TAPS.shape[0] + 1)
+def generate_table(settings):
+    samples_per_code = int(round(settings['sampling_frequency'] * settings['code_length'] / settings['code_frequency']))
+    repeats = samples_per_code / settings['code_length']
 
+    # print 'generate_table(): repeats = %s' % repr(repeats)
+
+    table = generate(prn=ALL_PRNS).repeat(
+        repeats,
+        axis=1
+    )
+
+    assert samples_per_code == table.shape[-1]
+
+    return table
+
+
+def main():
     # Generate C/A codes given an array of PRN values
-    ca_codes = generate(prn=prns)
+    ca_codes = generate(prn=ALL_PRNS)
 
     fig = plt.figure()
 
