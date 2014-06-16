@@ -507,7 +507,7 @@ if __name__ == '__main__':
         'satellites_to_search': np.arange(32)+1,
         'acquisition_search_frequency_band': 14000,
         'acquisition_search_frequency_step': 500,
-        'acquisition_threshold': 1.5,
+        'acquisition_threshold': 2.5,
         'use_sfft': False,
         'sfft_subsampling_factor': 2
     }
@@ -516,7 +516,10 @@ if __name__ == '__main__':
 
     results, performance_counter = acquisition(x, settings, plot_graphs=True, plot_3d_graphs=False)
 
+    for idx, found in enumerate(results['found']):
+        if found:
+            print '-> FOUND: prn = %s, shift = %s' % (repr(settings['satellites_to_search'][idx]), repr(results['code_shifts'][idx]))
+
     print repr(performance_counter)
-    print results['code_shifts']
 
     plt.show()
