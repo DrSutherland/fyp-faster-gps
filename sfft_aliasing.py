@@ -34,7 +34,7 @@ def execute(a, q):
     B = n/q
 
     # Allocate output array
-    b = np.zeros(B, dtype=np.complex128)
+    b = np.zeros(B, dtype=a.dtype)
 
     # Hash each input sample into the correct output bucket
     for i in xrange(n):

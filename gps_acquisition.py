@@ -11,12 +11,21 @@ from numpy.fft import fft, ifft
 from scipy import signal
 
 import ca_code
+import sfft_aliasing
 
 
 def acquisition(x, settings, plot_graphs=False, plot_3d_graphs=False):
     # Calculate number of samples per spreading code (corresponding to 1ms of data)
     samples_per_code = int(round(settings['sampling_frequency'] * settings['code_length'] / settings['code_frequency']))
     print 'samples_per_code = %s' % repr(samples_per_code)
+
+    # SFFT
+    aliased_samples_per_code = int(samples_per_code / settings['sfft_subsampling_factor'])
+
+    if settings['use_sfft']:
+        actual_samples_per_code = aliased_samples_per_code
+    else:
+        actual_samples_per_code = samples_per_code
 
     # Two consecutive 2ms reading
     x_1 = x[0:samples_per_code]
@@ -40,11 +49,21 @@ def acquisition(x, settings, plot_graphs=False, plot_3d_graphs=False):
 
     # Generate and store C/A lookup table
     ca_codes__time = ca_code.generate_table(settings)
+
+    # SFFT
+    if settings['use_sfft']:
+        aliased_ca_codes__time = np.empty(shape=(settings['satellites_total'], aliased_samples_per_code))
+
+        for i in xrange(ca_codes__time.shape[0]):
+            aliased_ca_codes__time[i] = sfft_aliasing.execute(ca_codes__time[i], settings['sfft_subsampling_factor'])
+
+        ca_codes__time = aliased_ca_codes__time
+
     ca_codes__freq = np.conjugate(fft(ca_codes__time))
     print 'ca_codes__time(%s) = %s' % (repr(ca_codes__time.shape), repr(ca_codes__time))
 
     # Allocate memory for the 2D search
-    all_results = np.empty(shape=(n_frequency_bins, samples_per_code))
+    all_results = np.empty(shape=(n_frequency_bins, actual_samples_per_code))
 
     # Generate all frequency bins
     frequency_bins = (
@@ -83,6 +102,10 @@ def acquisition(x, settings, plot_graphs=False, plot_3d_graphs=False):
             # Reconstruct baseband signal
             IQ1 = I1 + 1j*Q1
             IQ2 = I2 + 1j*Q2
+
+            if settings['use_sfft']:
+                IQ1 = sfft_aliasing.execute(IQ1, settings['sfft_subsampling_factor'])
+                IQ2 = sfft_aliasing.execute(IQ2, settings['sfft_subsampling_factor'])
 
             # Convert to frequency domain
             IQ1_freq = fft(IQ1)
@@ -145,6 +168,11 @@ def acquisition(x, settings, plot_graphs=False, plot_3d_graphs=False):
 
         # Calculate code phase range
         samples_per_code_chip = int(round(settings['sampling_frequency'] / settings['code_frequency']))
+
+        # SFFT
+        if settings['use_sfft']:
+            samples_per_code_chip = int(samples_per_code_chip / settings['sfft_subsampling_factor'])
+
         print 'samples_per_code_chip = %s' % repr(samples_per_code_chip)
 
         #
@@ -160,14 +188,14 @@ def acquisition(x, settings, plot_graphs=False, plot_3d_graphs=False):
         # Excluded range boundary correction
         if excluded_range_1 < 1:
             print 'excluded_range_1 < 1'
-            code_phase_range = np.arange(excluded_range_2, samples_per_code + excluded_range_1)
-        elif excluded_range_2 >= samples_per_code:
+            code_phase_range = np.arange(excluded_range_2, actual_samples_per_code + excluded_range_1)
+        elif excluded_range_2 >= actual_samples_per_code:
             print 'excluded_range_2 >= samples_per_code'
-            code_phase_range = np.arange(excluded_range_2 - samples_per_code, excluded_range_1)
+            code_phase_range = np.arange(excluded_range_2 - actual_samples_per_code, excluded_range_1)
         else:
             code_phase_range = np.concatenate((
                 np.arange(0, excluded_range_1),
-                np.arange(excluded_range_2, samples_per_code)
+                np.arange(excluded_range_2, actual_samples_per_code)
             ))
 
         assert code_shift not in code_phase_range
@@ -232,6 +260,8 @@ if __name__ == '__main__':
         'acquisition_search_frequency_band': 14000,
         'acquisition_search_frequency_step': 500,
         'acquisition_threshold': 2.5,
+        'use_sfft': True,
+        'sfft_subsampling_factor': 2
     }
 
     x = gps_data_reader.read(settings)

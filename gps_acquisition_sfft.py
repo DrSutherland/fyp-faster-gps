@@ -138,7 +138,7 @@ def acquisition(x, settings, plot_graphs=False):
         print 'excluded_range_1', excluded_range_1
         print 'excluded_range_2', excluded_range_2
 
-        if excluded_range_2 < 1:
+        if excluded_range_1 < 1:
             code_phase_range = np.arange(excluded_range_2, subsamples_per_code + excluded_range_1)
         elif excluded_range_2 >= subsamples_per_code:
             code_phase_range = np.arange(excluded_range_2 - subsamples_per_code, excluded_range_1)
