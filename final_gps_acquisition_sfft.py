@@ -23,23 +23,20 @@ def acquisition(x, settings,
     samples_per_code = int(round(settings['sampling_frequency'] * settings['code_length'] / settings['code_frequency']))
     print 'samples_per_code = %s' % repr(samples_per_code)
 
-    # SFFT
-    aliased_samples_per_code = int(samples_per_code / settings['sfft_subsampling_factor'])
+    p = int(np.round(np.sqrt(np.log(samples_per_code))))
+    print 'p = ', p
+    n__samples_to_alias = samples_per_code * p
+    x_1 = x[0:n__samples_to_alias]
+    x_2 = x[n__samples_to_alias:n__samples_to_alias*2]
+    x_1 = sfft_aliasing.execute(x_1, p)
+    x_2 = sfft_aliasing.execute(x_2, p)
 
-    if settings['use_sfft']:
-        actual_samples_per_code = aliased_samples_per_code
-    else:
-        actual_samples_per_code = samples_per_code
+    # print n__samples_to_alias
+    # print x_1.shape
 
-    # Two consecutive 2ms reading
-    # x_1 = x[(settings['code_offset']*samples_per_code):(settings['code_offset']*samples_per_code + samples_per_code)]
-    # x_2 = x[(settings['code_offset']*samples_per_code + samples_per_code):(settings['code_offset']*samples_per_code + 2*samples_per_code)]
-    x_1 = x[0:samples_per_code]
-    x_2 = x[samples_per_code:2*samples_per_code]
 
     print 'x_1.shape = %s' % repr(x_1.shape)
     print 'x_2.shape = %s' % repr(x_2.shape)
-    assert x_1.shape == x_2.shape
 
     # Calculate sampling period
     sampling_period = 1.0 / settings['sampling_frequency']
@@ -59,19 +56,11 @@ def acquisition(x, settings,
     ca_codes__time = ca_code.generate_table(settings)
 
     # SFFT
-    if settings['use_sfft']:
-        aliased_ca_codes__time = np.empty(shape=(settings['satellites_total'], aliased_samples_per_code))
-
-        for i in xrange(ca_codes__time.shape[0]):
-            aliased_ca_codes__time[i] = sfft_aliasing.execute(ca_codes__time[i], settings['sfft_subsampling_factor'])
-
-        ca_codes__time = aliased_ca_codes__time
-
     ca_codes__freq = np.conjugate(fft(ca_codes__time))
     print 'ca_codes__time(%s) = %s' % (repr(ca_codes__time.shape), repr(ca_codes__time))
 
     # Allocate memory for the 2D search
-    all_results = np.empty(shape=(n_frequency_bins, actual_samples_per_code))
+    all_results = np.empty(shape=(n_frequency_bins, samples_per_code))
 
     # Generate all frequency bins
     frequency_bins = (
@@ -111,11 +100,11 @@ def acquisition(x, settings,
             IQ1 = I1 + 1j*Q1
             IQ2 = I2 + 1j*Q2
 
-            if settings['use_sfft']:
-                IQ1 = sfft_aliasing.execute(IQ1, settings['sfft_subsampling_factor'])
-                IQ2 = sfft_aliasing.execute(IQ2, settings['sfft_subsampling_factor'])
-                performance_counter.increase(additions=IQ1.size * settings['sfft_subsampling_factor'])
-                performance_counter.increase(additions=IQ2.size * settings['sfft_subsampling_factor'])
+            # if settings['use_sfft']:
+            #     IQ1 = sfft_aliasing.execute(IQ1, settings['sfft_subsampling_factor'])
+            #     IQ2 = sfft_aliasing.execute(IQ2, settings['sfft_subsampling_factor'])
+            #     performance_counter.increase(additions=IQ1.size * settings['sfft_subsampling_factor'])
+            #     performance_counter.increase(additions=IQ2.size * settings['sfft_subsampling_factor'])
 
             # Convert to frequency domain
             IQ1_freq = fft(IQ1)
@@ -169,7 +158,7 @@ def acquisition(x, settings,
 
             ax = fig.gca(projection='3d')
             surf = ax.plot_surface(
-                X=np.arange(actual_samples_per_code).reshape((1, -1)),
+                X=np.arange(samples_per_code).reshape((1, -1)),
                 Y=doppler_shifts__khz.reshape((-1, 1)),
                 Z=all_results,
                 rstride=1,
@@ -184,9 +173,6 @@ def acquisition(x, settings,
         # Calculate code phase range
         samples_per_code_chip = int(round(settings['sampling_frequency'] / settings['code_frequency']))
 
-        # SFFT
-        if settings['use_sfft']:
-            samples_per_code_chip = int(samples_per_code_chip / settings['sfft_subsampling_factor'])
 
         print 'samples_per_code_chip = %s' % repr(samples_per_code_chip)
 
@@ -203,14 +189,14 @@ def acquisition(x, settings,
         # Excluded range boundary correction
         if excluded_range_1 < 1:
             print 'excluded_range_1 < 1'
-            code_phase_range = np.arange(excluded_range_2, actual_samples_per_code + excluded_range_1)
-        elif excluded_range_2 >= actual_samples_per_code:
+            code_phase_range = np.arange(excluded_range_2, samples_per_code + excluded_range_1)
+        elif excluded_range_2 >= samples_per_code:
             print 'excluded_range_2 >= samples_per_code'
-            code_phase_range = np.arange(excluded_range_2 - actual_samples_per_code, excluded_range_1)
+            code_phase_range = np.arange(excluded_range_2 - samples_per_code, excluded_range_1)
         else:
             code_phase_range = np.concatenate((
                 np.arange(0, excluded_range_1),
-                np.arange(excluded_range_2, actual_samples_per_code)
+                np.arange(excluded_range_2, samples_per_code)
             ))
 
         assert code_shift not in code_phase_range
@@ -499,7 +485,7 @@ if __name__ == '__main__':
     settings = {
         'file_name': './GNSS_signal_records/GPS_and_GIOVE_A-NN-fs16_3676-if4_1304.bin',
         'load_all_data': True,
-        'byte_offset': 0,
+        'byte_offset': 1000,
         'data_type': np.int8,
         'intermediate_frequency': 4130400,
         'sampling_frequency': 16367600,
@@ -511,7 +497,7 @@ if __name__ == '__main__':
         'acquisition_search_frequency_band': 14000,
         'acquisition_search_frequency_step': 500,
         'acquisition_threshold': 2.5,
-        'use_sfft': False,
+        'use_sfft': True,
         'sfft_subsampling_factor': 4
     }
 
