@@ -26,7 +26,12 @@ def read(settings, plot_graphs=False, debug=False):
             print 'Skipping first %d bytes' % settings['byte_offset']
             f.seek(settings['byte_offset'], os.SEEK_SET)
 
-        x = np.fromfile(f, dtype=settings['data_type'], count=samples_count)
+        if settings['load_all_data']:
+            actual_count = -1
+        else:
+            actual_count = samples_count
+
+        x = np.fromfile(f, dtype=settings['data_type'], count=actual_count)
 
     assert x.size >= samples_count, 'Not enough data'
 

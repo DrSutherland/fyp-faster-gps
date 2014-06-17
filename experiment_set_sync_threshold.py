@@ -5,7 +5,7 @@ import gps_acquisition
 import gps_data_reader
 
 n_code_offsets = 5
-threshold_ranges = np.arange(300, 320)
+threshold_ranges = np.arange(300, 301)
 
 
 def get_snr(x):
@@ -32,7 +32,7 @@ for threshold in threshold_ranges:
     while True:
         settings = {
             'file_name': './GNSS_signal_records/GPS_and_GIOVE_A-NN-fs16_3676-if4_1304.bin',
-            'byte_offset': 0,
+            'byte_offset': 600,
             'data_type': np.int8,
             'intermediate_frequency': 4130400,
             'sampling_frequency': 16367600,
@@ -40,7 +40,7 @@ for threshold in threshold_ranges:
             'code_length': 1023,
             'code_offset': code_offset,
             'satellites_total': 32,
-            'satellites_to_search': np.array([3]),
+            'satellites_to_search': np.arange(32)+1,#np.array([3]),
             'acquisition_search_frequency_band': 14000,
             'acquisition_search_frequency_step': 500,
             'acquisition_threshold': 2.5,
@@ -49,7 +49,7 @@ for threshold in threshold_ranges:
         }
         x = gps_data_reader.read(settings)
 
-        results, performance_counter = gps_acquisition.single_acquisition(x, prn=16, settings=settings, plot_3d_graphs=False)
+        results, performance_counter = gps_acquisition.single_acquisition(x, prn=15, settings=settings, plot_3d_graphs=False)
 
         if not results:
             break
@@ -84,6 +84,6 @@ for threshold in threshold_ranges:
     snrs.append(current_snr)
     code_shifts.append(corr_result__summed_magnitudes.argmax())
 
-print total_runs
-print snrs
-print code_shifts
+print 'total_runs', total_runs
+print 'snrs', snrs
+print 'code_shifts', code_shifts

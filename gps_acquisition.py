@@ -32,8 +32,10 @@ def acquisition(x, settings,
         actual_samples_per_code = samples_per_code
 
     # Two consecutive 2ms reading
-    x_1 = x[(settings['code_offset']*samples_per_code):(settings['code_offset']*samples_per_code + samples_per_code)]
-    x_2 = x[(settings['code_offset']*samples_per_code + samples_per_code):(settings['code_offset']*samples_per_code + 2*samples_per_code)]
+    # x_1 = x[(settings['code_offset']*samples_per_code):(settings['code_offset']*samples_per_code + samples_per_code)]
+    # x_2 = x[(settings['code_offset']*samples_per_code + samples_per_code):(settings['code_offset']*samples_per_code + 2*samples_per_code)]
+    x_1 = x[0:samples_per_code]
+    x_2 = x[samples_per_code:2*samples_per_code]
 
     print 'x_1.shape = %s' % repr(x_1.shape)
     print 'x_2.shape = %s' % repr(x_2.shape)
@@ -167,7 +169,7 @@ def acquisition(x, settings,
 
             ax = fig.gca(projection='3d')
             surf = ax.plot_surface(
-                X=np.arange(samples_per_code).reshape((1, -1)),
+                X=np.arange(actual_samples_per_code).reshape((1, -1)),
                 Y=doppler_shifts__khz.reshape((-1, 1)),
                 Z=all_results,
                 rstride=1,
@@ -496,6 +498,7 @@ if __name__ == '__main__':
 
     settings = {
         'file_name': './GNSS_signal_records/GPS_and_GIOVE_A-NN-fs16_3676-if4_1304.bin',
+        'load_all_data': True,
         'byte_offset': 0,
         'data_type': np.int8,
         'intermediate_frequency': 4130400,
@@ -509,7 +512,7 @@ if __name__ == '__main__':
         'acquisition_search_frequency_step': 500,
         'acquisition_threshold': 2.5,
         'use_sfft': False,
-        'sfft_subsampling_factor': 2
+        'sfft_subsampling_factor': 4
     }
 
     x = gps_data_reader.read(settings)
