@@ -138,7 +138,7 @@ def acquisition(x, settings,
         plt.plot(result_summation / result_summation.max())
         plt.ylabel('Normalised magnitude')
         plt.xlabel('Code shift (chips)')
-        plt.title('Summing %d results' % settings['sfft_sum_results'])
+        plt.title('PRN=%d, Summing %d result' % (prn, settings['sfft_sum_results']))
         plt.show()
         exit()
 
@@ -254,7 +254,7 @@ if __name__ == '__main__':
     settings = {
         'file_name': './GNSS_signal_records/GPS_and_GIOVE_A-NN-fs16_3676-if4_1304.bin',
         'load_all_data': True,
-        'byte_offset': 2000,
+        'byte_offset': 0,
         'data_type': np.int8,
         'intermediate_frequency': 4130400,
         'sampling_frequency': 16367600,
@@ -268,7 +268,7 @@ if __name__ == '__main__':
         'acquisition_threshold': 2.5,
         'use_sfft': True,
         'sfft_subsampling_factor': 2,
-        'sfft_sum_results': 20
+        'sfft_sum_results': 1
     }
 
     x = gps_data_reader.read(settings)
