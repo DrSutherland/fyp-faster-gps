@@ -75,13 +75,15 @@ def acquisition(x, settings,
     print 'frequency_bins(%s) = %s' % (repr(frequency_bins.shape), repr(frequency_bins))
 
     # Allocate memory for output dictionary
-    satellites_to_search__shape = settings['satellites_to_search'].shape
+    satellites_to_search__size = settings['satellites_to_search'].size
     output = {
-        'frequency_shifts': np.zeros(satellites_to_search__shape),
-        'frequency_offsets': np.zeros(satellites_to_search__shape),
-        'code_shifts': np.zeros(satellites_to_search__shape),
-        'peak_ratios': np.zeros(satellites_to_search__shape),
-        'found': np.zeros(satellites_to_search__shape, dtype=np.bool),
+        'frequency_shifts': np.zeros(satellites_to_search__size),
+        'frequency_offsets': np.zeros(satellites_to_search__size),
+        'code_shift_candidates': np.zeros(shape=(satellites_to_search__size, settings['sfft_subsampling_factor'])),
+        'code_shift_candidate_metrics': np.zeros(shape=(satellites_to_search__size, settings['sfft_subsampling_factor'])),
+        'code_shifts': np.zeros(satellites_to_search__size),
+        'peak_ratios': np.zeros(satellites_to_search__size),
+        'found': np.zeros(satellites_to_search__size, dtype=np.bool),
     }
 
     for idx, prn in enumerate(settings['satellites_to_search']):
@@ -184,11 +186,12 @@ def acquisition(x, settings,
             plt.grid()
 
         if settings['use_sfft']:
-            t_candidates = np.empty(settings['sfft_subsampling_factor'])
+            t_candidates = output['code_shift_candidate_metrics'][idx]
 
             for p in xrange(settings['sfft_subsampling_factor']):
                 # print original_ca_codes__time[prn-1].shape
                 candidate_t = code_shift + p * aliased_samples_per_code
+                output['code_shift_candidates'][idx][p] = candidate_t
 
                 ca_code__aligned = np.roll(original_ca_codes__time[prn-1], candidate_t)
                 x__start = x[0:samples_per_code]
@@ -331,11 +334,11 @@ if __name__ == '__main__':
         'code_length': 1023,
         'code_offset': 0,
         'satellites_total': 32,
-        'satellites_to_search': ALL_SATELLITES,
+        'satellites_to_search': VISIBLE_SATELLITES,
         'acquisition_search_frequency_band': 14000,
         'acquisition_search_frequency_step': 500,
         'acquisition_threshold': 2.5,
-        'use_sfft': False,
+        'use_sfft': True,
         'sfft_subsampling_factor': 4,
         'sum_results': 1
     }
@@ -347,13 +350,15 @@ if __name__ == '__main__':
                                                plot_corr_graphs_for=VISIBLE_SATELLITES)
 
     for idx, found in enumerate(results['found']):
-        print '-> %s: prn = %s, code_shift = %s, frequency_shift = %s, frequency_offset = %s' % (
+        print '-> %s: prn = %s, code_shift = %s, frequency_shift = %s, frequency_offset = %s,' \
+              'code_shift_candidates = %s, code_shift_candidate_metrics = %s' % (
             'FOUND' if found else 'NOT FOUND',
             repr(settings['satellites_to_search'][idx]),
-            # repr(results['code_shift_candidates'][idx]),
             repr(results['code_shifts'][idx]),
             repr(results['frequency_shifts'][idx]),
-            repr(results['frequency_offsets'][idx])
+            repr(results['frequency_offsets'][idx]),
+            repr(results['code_shift_candidates'][idx]),
+            repr(results['code_shift_candidate_metrics'][idx])
         )
 
     print repr(performance_counter)
