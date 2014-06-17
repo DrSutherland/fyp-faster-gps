@@ -27,17 +27,13 @@ def acquisition(x, settings,
     # print 'p = ', p
     p = settings['sfft_subsampling_factor']
     n__samples_to_alias = samples_per_code * p
-    x_1 = x[0:n__samples_to_alias]
-    x_2 = x[n__samples_to_alias:n__samples_to_alias*2]
-    x_1 = sfft_aliasing.execute(x_1, p)
-    x_2 = sfft_aliasing.execute(x_2, p)
 
     # print n__samples_to_alias
     # print x_1.shape
 
 
-    print 'x_1.shape = %s' % repr(x_1.shape)
-    print 'x_2.shape = %s' % repr(x_2.shape)
+    # print 'x_1.shape = %s' % repr(x_1.shape)
+    # print 'x_2.shape = %s' % repr(x_2.shape)
 
     # Calculate sampling period
     sampling_period = 1.0 / settings['sampling_frequency']
@@ -83,71 +79,76 @@ def acquisition(x, settings,
     for idx, prn in enumerate(settings['satellites_to_search']):
         print '* searching PRN = %s' % (repr(prn),)
 
-        #
-        # Scan all Doppler shifts
-        #
-        for freq_bin_i in xrange(n_frequency_bins):
-            # Generate local sine and cosine carriers
-            carrier_sin = np.sin(frequency_bins[freq_bin_i] * phases)
-            carrier_cos = np.cos(frequency_bins[freq_bin_i] * phases)
+        result_summation = np.zeros(samples_per_code)
 
-            # Demodulation
-            I1 = carrier_sin * x_1
-            Q1 = carrier_cos * x_1
-            I2 = carrier_sin * x_2
-            Q2 = carrier_cos * x_2
+        for sum_idx in xrange(settings['sfft_sum_results']):
+            x_1 = x[sum_idx*n__samples_to_alias:(sum_idx*n__samples_to_alias+n__samples_to_alias)]
+            x_1 = sfft_aliasing.execute(x_1, p)
 
-            # Reconstruct baseband signal
-            IQ1 = I1 + 1j*Q1
-            IQ2 = I2 + 1j*Q2
+            #
+            # Scan all Doppler shifts
+            #
+            for freq_bin_i in xrange(n_frequency_bins):
+                # Generate local sine and cosine carriers
+                carrier_sin = np.sin(frequency_bins[freq_bin_i] * phases)
+                carrier_cos = np.cos(frequency_bins[freq_bin_i] * phases)
 
-            # if settings['use_sfft']:
-            #     IQ1 = sfft_aliasing.execute(IQ1, settings['sfft_subsampling_factor'])
-            #     IQ2 = sfft_aliasing.execute(IQ2, settings['sfft_subsampling_factor'])
-            #     performance_counter.increase(additions=IQ1.size * settings['sfft_subsampling_factor'])
-            #     performance_counter.increase(additions=IQ2.size * settings['sfft_subsampling_factor'])
+                # Demodulation
+                I1 = carrier_sin * x_1
+                Q1 = carrier_cos * x_1
 
-            # Convert to frequency domain
-            IQ1_freq = fft(IQ1)
-            IQ2_freq = fft(IQ2)
-            performance_counter.fft(IQ1.size)
-            performance_counter.fft(IQ2.size)
+                # Reconstruct baseband signal
+                IQ1 = I1 + 1j*Q1
 
-            # Multiplication in the frequency domain corresponds to convolution in the time domain
-            conv_code_IQ1 = IQ1_freq * ca_codes__freq[prn-1]
-            conv_code_IQ2 = IQ2_freq * ca_codes__freq[prn-1]
-            performance_counter.increase(multiplications=IQ1_freq.size)
-            performance_counter.increase(multiplications=IQ2_freq.size)
+                # if settings['use_sfft']:
+                #     IQ1 = sfft_aliasing.execute(IQ1, settings['sfft_subsampling_factor'])
+                #     IQ2 = sfft_aliasing.execute(IQ2, settings['sfft_subsampling_factor'])
+                #     performance_counter.increase(additions=IQ1.size * settings['sfft_subsampling_factor'])
+                #     performance_counter.increase(additions=IQ2.size * settings['sfft_subsampling_factor'])
 
-            # IFFT to obtain correlation
-            corr_result_1 = np.abs(ifft(conv_code_IQ1)) ** 2
-            corr_result_2 = np.abs(ifft(conv_code_IQ2)) ** 2
+                # Convert to frequency domain
+                IQ1_freq = fft(IQ1)
+                performance_counter.fft(IQ1.size)
 
-            # assert all_results[freq_bin_i, :].shape == corr_result_1.shape == corr_result_2.shape
+                # Multiplication in the frequency domain corresponds to convolution in the time domain
+                conv_code_IQ1 = IQ1_freq * ca_codes__freq[prn-1]
+                performance_counter.increase(multiplications=IQ1_freq.size)
 
-            if np.max(corr_result_1) > np.max(corr_result_2):
+                # IFFT to obtain correlation
+                corr_result_1 = np.abs(ifft(conv_code_IQ1)) ** 2
+
+                # assert all_results[freq_bin_i, :].shape == corr_result_1.shape == corr_result_2.shape
+
                 all_results[freq_bin_i, :] = corr_result_1
-            else:
-                all_results[freq_bin_i, :] = corr_result_2
 
-        # Get the peak location for every frequency bins
-        peak_values = all_results.max(axis=1)
-        assert all_results.max() in peak_values
+            # Get the peak location for every frequency bins
+            peak_values = all_results.max(axis=1)
+            assert all_results.max() in peak_values
 
-        # Find the Doppler shift index
-        frequency_shift_idx = peak_values.argmax()
-        print 'frequency_shift_idx = %s' % repr(frequency_shift_idx)
+            # Find the Doppler shift index
+            frequency_shift_idx = peak_values.argmax()
+            print 'frequency_shift_idx = %s' % repr(frequency_shift_idx)
 
-        # Select the frequency bin that corresponds to this frequency shift index
-        located_frequency_bin = all_results[frequency_shift_idx]
+            # Select the frequency bin that corresponds to this frequency shift index
+            located_frequency_bin = all_results[frequency_shift_idx]
+
+            result_summation += located_frequency_bin
+
+        plt.figure()
+        plt.plot(result_summation / result_summation.max())
+        plt.ylabel('Normalised magnitude')
+        plt.xlabel('Code shift (chips)')
+        plt.title('Summing %d results' % settings['sfft_sum_results'])
+        plt.show()
+        exit()
 
         # Find the code shift in the correct frequency bin
-        code_shift = located_frequency_bin.argmax()
+        code_shift = result_summation.argmax()
         output['code_shifts'][idx] = code_shift
         print 'code_shift = %s' % repr(code_shift)
 
-        peak_value = all_results[frequency_shift_idx][code_shift]
-        assert all_results.max() == peak_value
+        peak_value = result_summation[code_shift]
+        assert result_summation.max() == peak_value
         print 'peak_value = %s' % repr(peak_value)
 
         if plot_3d_graphs:
@@ -170,7 +171,6 @@ def acquisition(x, settings,
             )
             ax.set_xlabel('Code shift')
             ax.set_ylabel('Doppler shift (kHz)')
-            ax.set_zlabel('Magnitude')
 
         # Calculate code phase range
         samples_per_code_chip = int(round(settings['sampling_frequency'] / settings['code_frequency']))
@@ -254,7 +254,7 @@ if __name__ == '__main__':
     settings = {
         'file_name': './GNSS_signal_records/GPS_and_GIOVE_A-NN-fs16_3676-if4_1304.bin',
         'load_all_data': True,
-        'byte_offset': 1000,
+        'byte_offset': 2000,
         'data_type': np.int8,
         'intermediate_frequency': 4130400,
         'sampling_frequency': 16367600,
@@ -262,17 +262,18 @@ if __name__ == '__main__':
         'code_length': 1023,
         'code_offset': 0,
         'satellites_total': 32,
-        'satellites_to_search': np.array([22]),#, 22)+1,#np.array([22]),
+        'satellites_to_search': np.array([3]),#np.arange(32)+1,#np.array([22]),
         'acquisition_search_frequency_band': 14000,
         'acquisition_search_frequency_step': 500,
         'acquisition_threshold': 2.5,
-        'use_sfft': False,
-        'sfft_subsampling_factor': 3
+        'use_sfft': True,
+        'sfft_subsampling_factor': 2,
+        'sfft_sum_results': 20
     }
 
     x = gps_data_reader.read(settings)
 
-    results, performance_counter = acquisition(x, settings, plot_graphs=True, plot_3d_graphs=True)
+    results, performance_counter = acquisition(x, settings, plot_graphs=True, plot_3d_graphs=False)
 
     for idx, found in enumerate(results['found']):
         if found:

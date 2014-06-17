@@ -7,6 +7,7 @@ from matplotlib import cm
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import ca_code
+import sfft_aliasing
 
 
 PlotPoints = namedtuple('PlotPoints', 'x y z')

@@ -53,10 +53,10 @@ def read(settings, plot_graphs=False, debug=False):
         # Frequency domain plot
         plt.subplot(122)
         f, Pxx_den = signal.welch(x-np.mean(x), settings['sampling_frequency'])
-        plt.plot(f, Pxx_den)
+        plt.plot(f / 1000000, Pxx_den)
         plt.title('PSD estimation')
-        plt.xlabel('Frequency (Hz)')
-        plt.ylabel('PSD (V**2/Hz)')
+        plt.xlabel('Frequency (MHz)')
+        plt.ylabel('PSD ($V^2/Hz$)')
         plt.tight_layout()
 
         plt.show()
@@ -67,6 +67,7 @@ def read(settings, plot_graphs=False, debug=False):
 if __name__ == '__main__':
     settings = {
         'file_name': './GNSS_signal_records/GPS_and_GIOVE_A-NN-fs16_3676-if4_1304.bin',
+        'load_all_data': True,
         'byte_offset': 600,
         'data_type': np.int8,
         'intermediate_frequency': 4130400,

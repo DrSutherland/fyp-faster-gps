@@ -23,28 +23,15 @@ def acquisition(x, settings,
     samples_per_code = int(round(settings['sampling_frequency'] * settings['code_length'] / settings['code_frequency']))
     print 'samples_per_code = %s' % repr(samples_per_code)
 
-    # p = int(np.round(np.sqrt(np.log(samples_per_code))))
-    # print 'p = ', p
-    p = settings['sfft_subsampling_factor']
-    n__samples_to_alias = samples_per_code * p
-    x_1 = x[0:n__samples_to_alias]
-    x_2 = x[n__samples_to_alias:n__samples_to_alias*2]
-    x_1 = sfft_aliasing.execute(x_1, p)
-    x_2 = sfft_aliasing.execute(x_2, p)
-
-    # print n__samples_to_alias
-    # print x_1.shape
-
-
-    print 'x_1.shape = %s' % repr(x_1.shape)
-    print 'x_2.shape = %s' % repr(x_2.shape)
+    assert samples_per_code % settings['sfft_subsampling_factor'] == 0
+    aliased_samples_per_code = int(samples_per_code / settings['sfft_subsampling_factor'])
 
     # Calculate sampling period
     sampling_period = 1.0 / settings['sampling_frequency']
     print 'sampling_period = %s' % repr(sampling_period)
 
     # Generate phase points of the local carrier
-    phases = np.arange(0, samples_per_code) * 2 * np.pi * sampling_period
+    phases = np.arange(0, aliased_samples_per_code) * 2 * np.pi * sampling_period
     print 'phases(%s) = %s' % (repr(phases.shape), repr(phases))
 
     # Calculate number of frequency bins depending on search frequency band and frequency step
@@ -57,11 +44,11 @@ def acquisition(x, settings,
     ca_codes__time = ca_code.generate_table(settings)
 
     # SFFT
-    ca_codes__freq = np.conjugate(fft(ca_codes__time))
-    print 'ca_codes__time(%s) = %s' % (repr(ca_codes__time.shape), repr(ca_codes__time))
+    # ca_codes__freq = np.conjugate(fft(ca_codes__time))
+    # print 'ca_codes__time(%s) = %s' % (repr(ca_codes__time.shape), repr(ca_codes__time))
 
     # Allocate memory for the 2D search
-    all_results = np.empty(shape=(n_frequency_bins, samples_per_code))
+    all_results = np.empty(shape=(n_frequency_bins, aliased_samples_per_code))
 
     # Generate all frequency bins
     frequency_bins = (
@@ -83,71 +70,98 @@ def acquisition(x, settings,
     for idx, prn in enumerate(settings['satellites_to_search']):
         print '* searching PRN = %s' % (repr(prn),)
 
-        #
-        # Scan all Doppler shifts
-        #
-        for freq_bin_i in xrange(n_frequency_bins):
-            # Generate local sine and cosine carriers
-            carrier_sin = np.sin(frequency_bins[freq_bin_i] * phases)
-            carrier_cos = np.cos(frequency_bins[freq_bin_i] * phases)
+        result_summation = np.zeros(aliased_samples_per_code)
 
-            # Demodulation
-            I1 = carrier_sin * x_1
-            Q1 = carrier_cos * x_1
-            I2 = carrier_sin * x_2
-            Q2 = carrier_cos * x_2
+        for sum_idx in xrange(settings['sfft_sum_results']):
+            # Get data
+            x_1 = x[sum_idx*samples_per_code:sum_idx*samples_per_code+samples_per_code]
+            assert x_1.size == samples_per_code
+            x_1 = sfft_aliasing.execute(x_1, settings['sfft_subsampling_factor'])
+            assert x_1.size == aliased_samples_per_code
 
-            # Reconstruct baseband signal
-            IQ1 = I1 + 1j*Q1
-            IQ2 = I2 + 1j*Q2
+            x_2 = x[sum_idx*samples_per_code+samples_per_code:sum_idx*samples_per_code+2*samples_per_code]
+            assert x_2.size == samples_per_code
+            x_2 = sfft_aliasing.execute(x_2, settings['sfft_subsampling_factor'])
+            assert x_2.size == aliased_samples_per_code
 
-            # if settings['use_sfft']:
-            #     IQ1 = sfft_aliasing.execute(IQ1, settings['sfft_subsampling_factor'])
-            #     IQ2 = sfft_aliasing.execute(IQ2, settings['sfft_subsampling_factor'])
-            #     performance_counter.increase(additions=IQ1.size * settings['sfft_subsampling_factor'])
-            #     performance_counter.increase(additions=IQ2.size * settings['sfft_subsampling_factor'])
+            #
+            # Scan all Doppler shifts
+            #
+            for freq_bin_i in xrange(n_frequency_bins):
+                # Generate local sine and cosine carriers
+                carrier_sin = np.sin(frequency_bins[freq_bin_i] * phases)
+                carrier_cos = np.cos(frequency_bins[freq_bin_i] * phases)
 
-            # Convert to frequency domain
-            IQ1_freq = fft(IQ1)
-            IQ2_freq = fft(IQ2)
-            performance_counter.fft(IQ1.size)
-            performance_counter.fft(IQ2.size)
+                # Demodulation
+                I1 = carrier_sin * x_1
+                Q1 = carrier_cos * x_1
+                I2 = carrier_sin * x_2
+                Q2 = carrier_cos * x_2
 
-            # Multiplication in the frequency domain corresponds to convolution in the time domain
-            conv_code_IQ1 = IQ1_freq * ca_codes__freq[prn-1]
-            conv_code_IQ2 = IQ2_freq * ca_codes__freq[prn-1]
-            performance_counter.increase(multiplications=IQ1_freq.size)
-            performance_counter.increase(multiplications=IQ2_freq.size)
+                # Reconstruct baseband signal
+                IQ1 = I1 + 1j*Q1
+                IQ2 = I2 + 1j*Q2
 
-            # IFFT to obtain correlation
-            corr_result_1 = np.abs(ifft(conv_code_IQ1)) ** 2
-            corr_result_2 = np.abs(ifft(conv_code_IQ2)) ** 2
+                # if settings['use_sfft']:
+                #     IQ1 = sfft_aliasing.execute(IQ1, settings['sfft_subsampling_factor'])
+                #     IQ2 = sfft_aliasing.execute(IQ2, settings['sfft_subsampling_factor'])
+                #     performance_counter.increase(additions=IQ1.size * settings['sfft_subsampling_factor'])
+                #     performance_counter.increase(additions=IQ2.size * settings['sfft_subsampling_factor'])
 
-            # assert all_results[freq_bin_i, :].shape == corr_result_1.shape == corr_result_2.shape
+                # Convert to frequency domain
+                IQ1_freq = fft(IQ1)
+                IQ2_freq = fft(IQ2)
+                performance_counter.fft(IQ1.size)
+                performance_counter.fft(IQ2.size)
 
-            if np.max(corr_result_1) > np.max(corr_result_2):
-                all_results[freq_bin_i, :] = corr_result_1
-            else:
-                all_results[freq_bin_i, :] = corr_result_2
+                # Multiplication in the frequency domain corresponds to convolution in the time domain
+                aliased_ca_code__time = sfft_aliasing.execute(ca_codes__time[prn-1], settings['sfft_subsampling_factor'])
+                assert aliased_ca_code__time.size == aliased_samples_per_code
+                aliased_ca_code__freq = fft(aliased_ca_code__time)
+                conv_code_IQ1 = IQ1_freq * aliased_ca_code__freq
+                conv_code_IQ2 = IQ2_freq * aliased_ca_code__freq
+                performance_counter.increase(multiplications=IQ1_freq.size)
+                performance_counter.increase(multiplications=IQ2_freq.size)
 
-        # Get the peak location for every frequency bins
-        peak_values = all_results.max(axis=1)
-        assert all_results.max() in peak_values
+                # IFFT to obtain correlation
+                corr_result_1 = np.abs(ifft(conv_code_IQ1)) ** 2
+                corr_result_2 = np.abs(ifft(conv_code_IQ2)) ** 2
 
-        # Find the Doppler shift index
-        frequency_shift_idx = peak_values.argmax()
-        print 'frequency_shift_idx = %s' % repr(frequency_shift_idx)
+                # assert all_results[freq_bin_i, :].shape == corr_result_1.shape == corr_result_2.shape
 
-        # Select the frequency bin that corresponds to this frequency shift index
-        located_frequency_bin = all_results[frequency_shift_idx]
+                if np.max(corr_result_1) > np.max(corr_result_2):
+                    all_results[freq_bin_i, :] = corr_result_1
+                else:
+                    all_results[freq_bin_i, :] = corr_result_2
+
+            # Get the peak location for every frequency bins
+            peak_values = all_results.max(axis=1)
+            assert all_results.max() in peak_values
+
+            # Find the Doppler shift index
+            frequency_shift_idx = peak_values.argmax()
+            print 'frequency_shift_idx = %s' % repr(frequency_shift_idx)
+
+            # Select the frequency bin that corresponds to this frequency shift index
+            located_frequency_bin = all_results[frequency_shift_idx]
+
+            result_summation += located_frequency_bin
+
+        plt.figure()
+        plt.plot(result_summation / result_summation.max())
+        plt.ylabel('Normalised magnitude')
+        plt.xlabel('Code shift (chips)')
+        plt.title('Summing %d results' % settings['sfft_sum_results'])
+        plt.show()
+        exit()
 
         # Find the code shift in the correct frequency bin
-        code_shift = located_frequency_bin.argmax()
+        code_shift = result_summation.argmax()
         output['code_shifts'][idx] = code_shift
         print 'code_shift = %s' % repr(code_shift)
 
-        peak_value = all_results[frequency_shift_idx][code_shift]
-        assert all_results.max() == peak_value
+        peak_value = result_summation[code_shift]
+        assert result_summation.max() == peak_value
         print 'peak_value = %s' % repr(peak_value)
 
         if plot_3d_graphs:
@@ -170,7 +184,6 @@ def acquisition(x, settings,
             )
             ax.set_xlabel('Code shift')
             ax.set_ylabel('Doppler shift (kHz)')
-            ax.set_zlabel('Magnitude')
 
         # Calculate code phase range
         samples_per_code_chip = int(round(settings['sampling_frequency'] / settings['code_frequency']))
@@ -191,14 +204,14 @@ def acquisition(x, settings,
         # Excluded range boundary correction
         if excluded_range_1 < 1:
             print 'excluded_range_1 < 1'
-            code_phase_range = np.arange(excluded_range_2, samples_per_code + excluded_range_1)
-        elif excluded_range_2 >= samples_per_code:
+            code_phase_range = np.arange(excluded_range_2, aliased_samples_per_code + excluded_range_1)
+        elif excluded_range_2 >= aliased_samples_per_code:
             print 'excluded_range_2 >= samples_per_code'
-            code_phase_range = np.arange(excluded_range_2 - samples_per_code, excluded_range_1)
+            code_phase_range = np.arange(excluded_range_2 - aliased_samples_per_code, excluded_range_1)
         else:
             code_phase_range = np.concatenate((
                 np.arange(0, excluded_range_1),
-                np.arange(excluded_range_2, samples_per_code)
+                np.arange(excluded_range_2, aliased_samples_per_code)
             ))
 
         assert code_shift not in code_phase_range
@@ -262,17 +275,18 @@ if __name__ == '__main__':
         'code_length': 1023,
         'code_offset': 0,
         'satellites_total': 32,
-        'satellites_to_search': np.array([22]),#, 22)+1,#np.array([22]),
+        'satellites_to_search': np.array([22]),#np.arange(32)+1,#np.array([22]),
         'acquisition_search_frequency_band': 14000,
         'acquisition_search_frequency_step': 500,
         'acquisition_threshold': 2.5,
         'use_sfft': False,
-        'sfft_subsampling_factor': 3
+        'sfft_subsampling_factor': 1,
+        'sfft_sum_results': 10
     }
 
     x = gps_data_reader.read(settings)
 
-    results, performance_counter = acquisition(x, settings, plot_graphs=True, plot_3d_graphs=True)
+    results, performance_counter = acquisition(x, settings, plot_graphs=True, plot_3d_graphs=False)
 
     for idx, found in enumerate(results['found']):
         if found:

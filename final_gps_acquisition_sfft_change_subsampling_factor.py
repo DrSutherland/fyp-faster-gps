@@ -23,18 +23,19 @@ def acquisition(x, settings,
     samples_per_code = int(round(settings['sampling_frequency'] * settings['code_length'] / settings['code_frequency']))
     print 'samples_per_code = %s' % repr(samples_per_code)
 
-    # p = int(np.round(np.sqrt(np.log(samples_per_code))))
-    # print 'p = ', p
-    p = settings['sfft_subsampling_factor']
-    n__samples_to_alias = samples_per_code * p
-    x_1 = x[0:n__samples_to_alias]
-    x_2 = x[n__samples_to_alias:n__samples_to_alias*2]
-    x_1 = sfft_aliasing.execute(x_1, p)
-    x_2 = sfft_aliasing.execute(x_2, p)
+    # SFFT
+    aliased_samples_per_code = int(samples_per_code / settings['sfft_subsampling_factor'])
+
+    if settings['use_sfft']:
+        actual_samples_per_code = aliased_samples_per_code
+    else:
+        actual_samples_per_code = samples_per_code
+
+    x_1 = x[0:actual_samples_per_code]
+    x_2 = x[actual_samples_per_code:2*actual_samples_per_code]
 
     # print n__samples_to_alias
     # print x_1.shape
-
 
     print 'x_1.shape = %s' % repr(x_1.shape)
     print 'x_2.shape = %s' % repr(x_2.shape)
@@ -44,7 +45,7 @@ def acquisition(x, settings,
     print 'sampling_period = %s' % repr(sampling_period)
 
     # Generate phase points of the local carrier
-    phases = np.arange(0, samples_per_code) * 2 * np.pi * sampling_period
+    phases = np.arange(0, actual_samples_per_code) * 2 * np.pi * sampling_period
     print 'phases(%s) = %s' % (repr(phases.shape), repr(phases))
 
     # Calculate number of frequency bins depending on search frequency band and frequency step
@@ -57,11 +58,20 @@ def acquisition(x, settings,
     ca_codes__time = ca_code.generate_table(settings)
 
     # SFFT
+    if settings['use_sfft']:
+        aliased_ca_codes__time = np.empty(shape=(settings['satellites_total'], aliased_samples_per_code))
+
+        for i in xrange(ca_codes__time.shape[0]):
+            # aliased_ca_codes__time[i] = signal.decimate(ca_codes__time[i], settings['sfft_subsampling_factor'])
+            aliased_ca_codes__time[i] = sfft_aliasing.execute(ca_codes__time[i], settings['sfft_subsampling_factor'])
+
+        ca_codes__time = aliased_ca_codes__time
+
     ca_codes__freq = np.conjugate(fft(ca_codes__time))
     print 'ca_codes__time(%s) = %s' % (repr(ca_codes__time.shape), repr(ca_codes__time))
 
     # Allocate memory for the 2D search
-    all_results = np.empty(shape=(n_frequency_bins, samples_per_code))
+    all_results = np.empty(shape=(n_frequency_bins, actual_samples_per_code))
 
     # Generate all frequency bins
     frequency_bins = (
@@ -159,7 +169,7 @@ def acquisition(x, settings,
 
             ax = fig.gca(projection='3d')
             surf = ax.plot_surface(
-                X=np.arange(samples_per_code).reshape((1, -1)),
+                X=np.arange(actual_samples_per_code).reshape((1, -1)),
                 Y=doppler_shifts__khz.reshape((-1, 1)),
                 Z=all_results,
                 rstride=1,
@@ -170,7 +180,6 @@ def acquisition(x, settings,
             )
             ax.set_xlabel('Code shift')
             ax.set_ylabel('Doppler shift (kHz)')
-            ax.set_zlabel('Magnitude')
 
         # Calculate code phase range
         samples_per_code_chip = int(round(settings['sampling_frequency'] / settings['code_frequency']))
@@ -191,14 +200,14 @@ def acquisition(x, settings,
         # Excluded range boundary correction
         if excluded_range_1 < 1:
             print 'excluded_range_1 < 1'
-            code_phase_range = np.arange(excluded_range_2, samples_per_code + excluded_range_1)
-        elif excluded_range_2 >= samples_per_code:
+            code_phase_range = np.arange(excluded_range_2, actual_samples_per_code + excluded_range_1)
+        elif excluded_range_2 >= actual_samples_per_code:
             print 'excluded_range_2 >= samples_per_code'
-            code_phase_range = np.arange(excluded_range_2 - samples_per_code, excluded_range_1)
+            code_phase_range = np.arange(excluded_range_2 - actual_samples_per_code, excluded_range_1)
         else:
             code_phase_range = np.concatenate((
                 np.arange(0, excluded_range_1),
-                np.arange(excluded_range_2, samples_per_code)
+                np.arange(excluded_range_2, actual_samples_per_code)
             ))
 
         assert code_shift not in code_phase_range
@@ -237,12 +246,11 @@ def acquisition(x, settings,
             artist__not_acquired,
             artist__acquired
         ), (
-            'Not acquired',
-            'Acquired'
+            'Signal not acquired',
+            'Signal acquired'
         ))
         plt.xlim(0, settings['satellites_total'] + 1)
 
-        plt.grid()
         plt.tight_layout()
 
     return output, performance_counter
@@ -262,17 +270,17 @@ if __name__ == '__main__':
         'code_length': 1023,
         'code_offset': 0,
         'satellites_total': 32,
-        'satellites_to_search': np.array([22]),#, 22)+1,#np.array([22]),
+        'satellites_to_search': np.arange(32)+1,#np.array([22]),
         'acquisition_search_frequency_band': 14000,
         'acquisition_search_frequency_step': 500,
         'acquisition_threshold': 2.5,
-        'use_sfft': False,
-        'sfft_subsampling_factor': 3
+        'use_sfft': True,
+        'sfft_subsampling_factor': 2
     }
 
     x = gps_data_reader.read(settings)
 
-    results, performance_counter = acquisition(x, settings, plot_graphs=True, plot_3d_graphs=True)
+    results, performance_counter = acquisition(x, settings, plot_graphs=True, plot_3d_graphs=False)
 
     for idx, found in enumerate(results['found']):
         if found:
