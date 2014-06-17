@@ -177,9 +177,9 @@ def acquisition(x, settings,
             plt.xlabel('Code shift (chips)')
 
             if settings['use_sfft']:
-                plt.title('PRN=%s, q=%s' % (repr(prn), repr(settings['sfft_subsampling_factor'])))
+                plt.title('PRN=%s, q=%s (Sparse)' % (repr(prn), repr(settings['sfft_subsampling_factor'])))
             else:
-                plt.title('PRN=%s' % (repr(prn),))
+                plt.title('PRN=%s (Baseline)' % (repr(prn),))
             # plt.title('Summing %d results' % settings['sum_results'])
             plt.grid()
 
@@ -335,7 +335,7 @@ if __name__ == '__main__':
         'acquisition_search_frequency_band': 14000,
         'acquisition_search_frequency_step': 500,
         'acquisition_threshold': 2.5,
-        'use_sfft': True,
+        'use_sfft': False,
         'sfft_subsampling_factor': 4,
         'sum_results': 1
     }
@@ -350,7 +350,7 @@ if __name__ == '__main__':
         print '-> %s: prn = %s, code_shift = %s, frequency_shift = %s, frequency_offset = %s' % (
             'FOUND' if found else 'NOT FOUND',
             repr(settings['satellites_to_search'][idx]),
-            repr(results['code_shift_candidates'][idx]),
+            # repr(results['code_shift_candidates'][idx]),
             repr(results['code_shifts'][idx]),
             repr(results['frequency_shifts'][idx]),
             repr(results['frequency_offsets'][idx])
